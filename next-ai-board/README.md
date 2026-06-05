@@ -47,3 +47,29 @@ npm run dev
 ```txt
 http://localhost:3000
 ```
+
+## Board Pages
+
+이 브랜치에서는 기본 게시판 기능을 위한 정적 페이지 UI를 추가했습니다.
+
+추가한 페이지:
+- `/`: 홈
+- `/posts`: 게시글 목록, 검색, 태그, 페이징
+- `/posts/new`: 게시글 작성
+- `/posts/[id]`: 게시글 상세, 댓글 목록, 댓글 작성
+- `/posts/[id]/edit`: 게시글 수정
+- `/login`: 로그인
+- `/signup`: 회원가입
+
+추가한 구조:
+- `src/components/layout`: 공통 헤더와 페이지 레이아웃
+- `src/components/posts`: 게시글 카드, 목록, 작성 폼
+- `src/components/comments`: 댓글 목록과 댓글 폼
+- `src/components/auth`: 로그인/회원가입 폼
+- `src/components/search`: 검색 바
+- `src/components/pagination`: 페이지네이션
+- `src/components/tags`: 태그 배지
+- `src/components/ui`: 공통 링크 버튼
+- `src/lib/mock-posts.ts`: DB 연결 전 화면 확인용 mock 데이터
+
+현재 단계에서는 DB/API 연결 없이 화면 흐름만 확인합니다. 다음 단계에서 게시글 API와 DB 스키마를 연결합니다.
