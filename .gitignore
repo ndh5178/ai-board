@@ -1,1 +1,6 @@
 NEXTJS.md
+next-ai-board/.next/
+next-ai-board/node_modules/
+next-ai-board/out/
+next-ai-board/.env
+next-ai-board/.env.*
