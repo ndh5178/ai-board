@@ -26,7 +26,7 @@ export function SiteHeader() {
         </Link>
         <nav className="site-header__nav" aria-label="주요 메뉴">
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href}>
+            <Link key={`${item.href}-${item.label}`} href={item.href}>
               {item.label}
             </Link>
           ))}

@@ -107,3 +107,24 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 - 티켓/공연 랭킹 페이지처럼 섹션이 선명하게 나뉘는 구성
 
 브랜드 로고와 실제 공연 이미지는 사용하지 않고, 과제용 게시판 데이터로 같은 구조와 밀도를 재현했습니다.
+
+## Auth API
+
+이 브랜치에서는 회원가입/로그인 API와 폼 제출 흐름을 추가했습니다.
+
+추가한 서버 로직:
+- `src/lib/db.ts`: Prisma 7 Postgres adapter 기반 Prisma Client 싱글톤 연결
+- `src/lib/password.ts`: `scrypt` 기반 비밀번호 해시/검증
+- `src/lib/session.ts`: 서명된 HTTP-only 쿠키 세션 생성/검증/삭제
+
+추가한 API route:
+- `POST /api/auth/signup`: 사용자 생성 후 세션 쿠키 발급
+- `POST /api/auth/login`: 비밀번호 검증 후 세션 쿠키 발급
+- `POST /api/auth/logout`: 세션 쿠키 삭제
+- `GET /api/auth/me`: 현재 로그인 사용자 조회
+
+화면 연결:
+- 로그인/회원가입 폼은 `/api/auth/login`, `/api/auth/signup`을 호출합니다.
+- 성공하면 `/posts`로 이동합니다.
+
+현재 단계에서는 DB 서버가 실제로 연결되어 있어야 API가 정상 동작합니다.
