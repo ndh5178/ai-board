@@ -11,6 +11,7 @@ const SESSION_SECRET =
 type SessionPayload = {
   userId: string;
   email: string;
+  name?: string;
   role: string;
   exp: number;
 };

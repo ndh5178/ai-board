@@ -5,11 +5,25 @@ import { useState } from "react";
 
 type AuthFormClientProps = {
   mode: "login" | "signup";
+  redirectTo?: string;
 };
 
-export function AuthFormClient({ mode }: AuthFormClientProps) {
+function getSafeRedirectPath(redirectTo?: string, fallback = "/") {
+  if (!redirectTo?.startsWith("/") || redirectTo.startsWith("//")) {
+    return fallback;
+  }
+
+  return redirectTo;
+}
+
+export function AuthFormClient({ mode, redirectTo }: AuthFormClientProps) {
   const router = useRouter();
   const isLogin = mode === "login";
+  const safeRedirectPath = getSafeRedirectPath(redirectTo, "/");
+  const loginAfterSignupPath =
+    mode === "signup" && redirectTo
+      ? `/login?next=${encodeURIComponent(safeRedirectPath)}`
+      : "/login";
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,13 +40,16 @@ export function AuthFormClient({ mode }: AuthFormClientProps) {
     };
 
     try {
-      const response = await fetch(`/api/auth/${mode}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/auth/${mode}?next=${encodeURIComponent(safeRedirectPath)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-      });
+      );
       const result = (await response.json().catch(() => null)) as {
         message?: string;
       } | null;
@@ -42,7 +59,12 @@ export function AuthFormClient({ mode }: AuthFormClientProps) {
         return;
       }
 
-      router.push("/login");
+      if (mode === "signup") {
+        router.push(loginAfterSignupPath);
+      } else {
+        router.push(safeRedirectPath);
+      }
+
       router.refresh();
     } catch {
       setMessage("서버와 연결하지 못했습니다. 개발 서버와 DB 상태를 확인하세요.");
@@ -53,7 +75,7 @@ export function AuthFormClient({ mode }: AuthFormClientProps) {
 
   return (
     <form
-      action={`/api/auth/${mode}`}
+      action={`/api/auth/${mode}?next=${encodeURIComponent(safeRedirectPath)}`}
       className="auth-form"
       method="post"
       onSubmit={handleSubmit}

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
-import { createSessionToken, setSessionCookie } from "@/lib/session";
 
 type SignupBody = {
   name?: string;
@@ -35,6 +34,17 @@ async function readSignupBody(request: Request) {
 
 function isFormSubmit(request: Request) {
   return !(request.headers.get("content-type") ?? "").includes("application/json");
+}
+
+function getSafeRedirectUrl(request: Request) {
+  const requestUrl = new URL(request.url);
+  const next = requestUrl.searchParams.get("next");
+  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : null;
+  const loginPath = safeNext
+    ? `/login?next=${encodeURIComponent(safeNext)}`
+    : "/login";
+
+  return new URL(loginPath, request.url);
 }
 
 export async function POST(request: Request) {
@@ -80,18 +90,9 @@ export async function POST(request: Request) {
     });
 
     const response = NextResponse.json({ user }, { status: 201 });
-    const token = createSessionToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    });
-    setSessionCookie(response, token);
 
     if (isFormSubmit(request)) {
-      const redirectResponse = NextResponse.redirect(new URL("/posts", request.url), 303);
-      setSessionCookie(redirectResponse, token);
-
-      return redirectResponse;
+      return NextResponse.redirect(getSafeRedirectUrl(request), 303);
     }
 
     return response;

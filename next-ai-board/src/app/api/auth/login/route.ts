@@ -31,6 +31,14 @@ function isFormSubmit(request: Request) {
   return !(request.headers.get("content-type") ?? "").includes("application/json");
 }
 
+function getSafeRedirectUrl(request: Request) {
+  const requestUrl = new URL(request.url);
+  const next = requestUrl.searchParams.get("next") ?? "/posts";
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/posts";
+
+  return new URL(safeNext, request.url);
+}
+
 export async function POST(request: Request) {
   try {
     const body = await readLoginBody(request);
@@ -73,12 +81,13 @@ export async function POST(request: Request) {
     const token = createSessionToken({
       userId: user.id,
       email: user.email,
+      name: user.name,
       role: user.role,
     });
     setSessionCookie(response, token);
 
     if (isFormSubmit(request)) {
-      const redirectResponse = NextResponse.redirect(new URL("/posts", request.url), 303);
+      const redirectResponse = NextResponse.redirect(getSafeRedirectUrl(request), 303);
       setSessionCookie(redirectResponse, token);
 
       return redirectResponse;

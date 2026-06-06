@@ -1,28 +1,33 @@
 import Link from "next/link";
+import { LogoutButton } from "@/components/auth/LogoutButton";
+import { getSession } from "@/lib/session";
 
 const navItems = [
   { href: "/", label: "홈" },
-  { href: "/posts", label: "랭킹" },
+  { href: "/posts", label: "전체글" },
   { href: "/posts/new", label: "글쓰기" },
-  { href: "/posts", label: "장르" },
-  { href: "/posts", label: "오픈예정" },
-  { href: "/posts", label: "할인" },
+  { href: "/tags", label: "태그" },
+  { href: "/notices", label: "공지사항" },
+  { href: "/ai", label: "AI 도우미" },
 ];
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const session = await getSession();
+  const displayName = session?.name ?? session?.email;
+
   return (
     <header className="site-header">
       <div className="site-header__utility">
         <div className="site-header__utility-inner">
-          <span>AI 티켓</span>
-          <span>프로젝트</span>
-          <span>학습노트</span>
-          <span>내 예약</span>
+          <Link href="/me">마이페이지</Link>
+          <Link href="/me/posts">내가 쓴 글</Link>
+          <Link href="/me/comments">내 댓글</Link>
+          <Link href="/settings">설정</Link>
         </div>
       </div>
       <div className="site-header__inner">
         <Link className="site-header__brand" href="/">
-          티켓AI
+          AI 게시판
         </Link>
         <nav className="site-header__nav" aria-label="주요 메뉴">
           {navItems.map((item) => (
@@ -31,9 +36,18 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <Link className="site-header__login" href="/login">
-          로그인
-        </Link>
+        {displayName ? (
+          <div className="site-header__account">
+            <Link className="site-header__user" href="/me">
+              {displayName}
+            </Link>
+            <LogoutButton />
+          </div>
+        ) : (
+          <Link className="site-header__login" href="/login">
+            로그인
+          </Link>
+        )}
       </div>
     </header>
   );

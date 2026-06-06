@@ -95,10 +95,44 @@ button:disabled {
   color: #ef3f7b;
 }
 
-.site-header__login {
+.site-header__login,
+.site-header__user {
   color: #777782;
   font-size: 14px;
   font-weight: 800;
+}
+
+.site-header__user {
+  max-width: 140px;
+  overflow: hidden;
+  color: #111111;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-header__account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.site-header__logout-form {
+  margin: 0;
+}
+
+.site-header__logout {
+  border: 0;
+  background: transparent;
+  color: #ef3f7b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.site-header__logout:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .page {
