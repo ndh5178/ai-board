@@ -9,9 +9,9 @@ import { mockPosts, popularTags } from "@/lib/mock-posts";
 export default function PostsPage() {
   return (
     <PageShell
-      eyebrow="Board"
-      title="게시글"
-      description="검색, 태그, 페이징으로 필요한 글을 빠르게 찾습니다."
+      eyebrow="Ranking"
+      title="장르별 게시글 랭킹"
+      description="AI, DB, 백엔드, 프론트엔드 주제별로 지금 많이 읽히는 글을 빠르게 찾습니다."
       actions={<ButtonLink href="/posts/new">글쓰기</ButtonLink>}
     >
       <section className="toolbar">

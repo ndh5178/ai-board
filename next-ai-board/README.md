@@ -21,6 +21,7 @@ Next.js로 만드는 제출용 AI 게시판 후보입니다.
 ## Learning Notes
 
 - `NEXTJS.md`: Next.js를 배우면서 생긴 질문과 답을 적는 개인 학습 노트입니다. 이 파일은 `.gitignore`에 등록되어 커밋하지 않습니다.
+- [PRISMA.md](./PRISMA.md): Prisma를 왜 쓰는지, 좋은 점과 주의할 점을 정리한 학습 문서입니다.
 
 ## App Init
 
@@ -73,3 +74,36 @@ http://localhost:3000
 - `src/lib/mock-posts.ts`: DB 연결 전 화면 확인용 mock 데이터
 
 현재 단계에서는 DB/API 연결 없이 화면 흐름만 확인합니다. 다음 단계에서 게시글 API와 DB 스키마를 연결합니다.
+
+## Prisma Schema
+
+이 브랜치에서는 기본 게시판 데이터를 저장하기 위한 Prisma 스키마를 추가했습니다.
+
+추가한 모델:
+- `User`: 회원가입/로그인 사용자
+- `Post`: 게시글
+- `Comment`: 댓글
+- `Tag`: 태그
+- `PostTag`: 게시글과 태그의 다대다 연결 테이블
+
+추가한 설정:
+- `prisma/schema.prisma`: Prisma 데이터 모델
+- `prisma.config.ts`: Prisma 7 기준 DB 연결 설정
+- `.env.example`: `DATABASE_URL` 예시
+
+Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.ts`에서 관리합니다.
+
+## Visual Direction
+
+이 브랜치에서는 기존 토스풍 스타일을 NOL 인터파크 티켓 페이지에서 보이는 티켓 커머스 톤에 훨씬 가깝게 조정했습니다.
+
+참고한 방향:
+- 상단 유틸리티 바와 메인 네비게이션
+- 핑크/보라 계열 포인트 컬러
+- 포스터형 히어로 카드
+- 장르 탭 바로가기
+- 랭킹 번호가 보이는 카드 목록
+- 할인/추천 카드 그리드
+- 티켓/공연 랭킹 페이지처럼 섹션이 선명하게 나뉘는 구성
+
+브랜드 로고와 실제 공연 이미지는 사용하지 않고, 과제용 게시판 데이터로 같은 구조와 밀도를 재현했습니다.

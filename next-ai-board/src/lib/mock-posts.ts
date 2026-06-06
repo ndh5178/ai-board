@@ -12,6 +12,11 @@ export const mockPosts: PostDetail[] = [
     commentCount: 4,
     tags: ["RAG", "pgvector", "Next.js"],
     createdAt: "2026-06-05",
+    venue: "AI 응용 질문관",
+    period: "2026.6.5 ~ 6.12",
+    badge: "좌석우위",
+    accent: "#7c3cff",
+    discount: "BEST",
   },
   {
     id: "2",
@@ -23,6 +28,11 @@ export const mockPosts: PostDetail[] = [
     commentCount: 2,
     tags: ["MCP", "API", "Agent"],
     createdAt: "2026-06-04",
+    venue: "외부 API 연동관",
+    period: "2026.6.4 ~ 6.18",
+    badge: "단독판매",
+    accent: "#f04484",
+    discount: "HOT",
   },
   {
     id: "3",
@@ -34,6 +44,11 @@ export const mockPosts: PostDetail[] = [
     commentCount: 7,
     tags: ["DB", "Prisma", "Tag"],
     createdAt: "2026-06-03",
+    venue: "데이터 모델링홀",
+    period: "2026.6.3 ~ 6.20",
+    badge: "추천",
+    accent: "#111111",
+    discount: "NEW",
   },
 ];
 

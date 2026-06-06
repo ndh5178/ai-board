@@ -1,31 +1,75 @@
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { PostList } from "@/components/posts/PostList";
-import { mockPosts } from "@/lib/mock-posts";
+import { mockPosts, popularTags } from "@/lib/mock-posts";
+
+const heroItems = mockPosts.slice(0, 3);
+const dealItems = [
+  { title: "AI 글쓰기 파트너", place: "Agent Studio", rate: "50%", price: "초안 자동 생성" },
+  { title: "유사 게시글 추천", place: "RAG Lab", rate: "40%", price: "관련 글 3개 요약" },
+  { title: "외부 데이터 브리핑", place: "MCP Hall", rate: "30%", price: "날씨/뉴스 연결" },
+];
 
 export default function Home() {
   return (
-    <main className="page">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">next-ai-board</p>
-          <h1>AI Board</h1>
-          <p>질문과 아이디어를 모으고, AI 기능을 단계적으로 연결하는 게시판입니다.</p>
+    <main className="ticket-page">
+      <section className="ticket-hero">
+        <div className="ticket-hero__copy">
+          <p className="eyebrow">AI BOARD ORIGINAL</p>
+          <h1>AI 게시판 랭킹 오픈</h1>
+          <p>질문, 토론, 구현 기록을 티켓 랭킹처럼 탐색하고 AI 기능으로 확장합니다.</p>
+          <div className="hero__actions">
+            <ButtonLink href="/posts/new">글쓰기</ButtonLink>
+            <ButtonLink href="/posts" variant="secondary">
+              랭킹 보기
+            </ButtonLink>
+          </div>
         </div>
-        <div className="hero__actions">
-          <ButtonLink href="/posts/new">글쓰기</ButtonLink>
-          <ButtonLink href="/posts" variant="secondary">
-            게시글 보기
-          </ButtonLink>
+        <div className="ticket-hero__posters" aria-label="추천 게시글">
+          {heroItems.map((post, index) => (
+            <article
+              className="poster-card"
+              key={post.id}
+              style={{ "--poster-accent": post.accent } as React.CSSProperties}
+            >
+              <span className="poster-card__rank">{index + 1}</span>
+              <strong>{post.title}</strong>
+              <small>{post.venue}</small>
+            </article>
+          ))}
         </div>
       </section>
+
+      <section className="genre-strip" aria-label="장르 바로가기">
+        {popularTags.concat(["인증", "검색", "댓글"]).map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </section>
+
       <section className="section">
         <div className="section__header">
-          <h2>최신 게시글</h2>
+          <h2>장르별 랭킹</h2>
           <ButtonLink href="/posts" variant="secondary">
-            전체 보기
+            랭킹 전체보기
           </ButtonLink>
         </div>
-        <PostList posts={mockPosts.slice(0, 2)} />
+        <PostList posts={mockPosts} />
+      </section>
+
+      <section className="section">
+        <div className="section__header">
+          <h2>지금 준비중인 AI 기능</h2>
+          <span className="section__badge">타임딜</span>
+        </div>
+        <div className="deal-grid">
+          {dealItems.map((item) => (
+            <article className="deal-card" key={item.title}>
+              <div className="deal-card__thumb">{item.rate}</div>
+              <strong>{item.title}</strong>
+              <span>{item.place}</span>
+              <p>{item.price}</p>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );

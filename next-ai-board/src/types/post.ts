@@ -6,6 +6,11 @@ export type PostSummary = {
   commentCount: number;
   tags: string[];
   createdAt: string;
+  venue: string;
+  period: string;
+  badge?: string;
+  accent: string;
+  discount?: string;
 };
 
 export type PostDetail = PostSummary & {
