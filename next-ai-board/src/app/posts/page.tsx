@@ -4,26 +4,57 @@ import { Pagination } from "@/components/pagination/Pagination";
 import { PostList } from "@/components/posts/PostList";
 import { SearchBar } from "@/components/search/SearchBar";
 import { TagBadge } from "@/components/tags/TagBadge";
-import { mockPosts, popularTags } from "@/lib/mock-posts";
+import { getPopularTags, listPosts } from "@/lib/posts";
 
-export default function PostsPage() {
+type PostsPageProps = {
+  searchParams?: Promise<{
+    page?: string;
+    q?: string;
+    tag?: string;
+  }>;
+};
+
+export default async function PostsPage({ searchParams }: PostsPageProps) {
+  const params = await searchParams;
+  const page = Number(params?.page ?? "1");
+  const query = params?.q ?? "";
+  const tag = params?.tag ?? "";
+  const [{ posts, currentPage, totalPages, totalCount }, popularTags] =
+    await Promise.all([
+      listPosts({
+        page: Number.isNaN(page) ? 1 : page,
+        query,
+        tag,
+      }),
+      getPopularTags(),
+    ]);
+
   return (
     <PageShell
-      eyebrow="Ranking"
-      title="장르별 게시글 랭킹"
-      description="AI, DB, 백엔드, 프론트엔드 주제별로 지금 많이 읽히는 글을 빠르게 찾습니다."
+      eyebrow="Posts"
+      title="전체글"
+      description={`DB에 저장된 게시글 ${totalCount}개를 검색하고 태그로 탐색합니다.`}
       actions={<ButtonLink href="/posts/new">글쓰기</ButtonLink>}
     >
       <section className="toolbar">
-        <SearchBar />
+        <SearchBar query={query} />
         <div className="tag-row">
-          {popularTags.map((tag) => (
-            <TagBadge key={tag} label={tag} />
+          {popularTags.map((tagName) => (
+            <TagBadge
+              key={tagName}
+              label={tagName}
+              href={`/posts?tag=${encodeURIComponent(tagName)}`}
+            />
           ))}
         </div>
       </section>
-      <PostList posts={mockPosts} />
-      <Pagination />
+      <PostList posts={posts} />
+      <Pagination
+        currentPage={currentPage}
+        query={query}
+        tag={tag}
+        totalPages={totalPages}
+      />
     </PageShell>
   );
 }

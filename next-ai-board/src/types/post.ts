@@ -15,4 +15,5 @@ export type PostSummary = {
 
 export type PostDetail = PostSummary & {
   content: string;
+  authorId?: string;
 };

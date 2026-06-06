@@ -1,7 +1,10 @@
 import { PageShell } from "@/components/layout/PageShell";
 import { PostForm } from "@/components/posts/PostForm";
+import { requireAuth } from "@/lib/require-auth";
 
-export default function NewPostPage() {
+export default async function NewPostPage() {
+  await requireAuth("/posts/new");
+
   return (
     <PageShell
       eyebrow="Write"

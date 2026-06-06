@@ -321,11 +321,18 @@ button:disabled {
   border: 1px solid #e8e8ef;
 }
 
+.button--danger {
+  background: #fff1f3;
+  color: #d92d20;
+  border: 1px solid #ffd2d7;
+}
+
 .section,
 .toolbar,
 .detail-panel,
 .form-panel,
-.auth-panel {
+.auth-panel,
+.empty-state {
   margin-top: 20px;
   padding: 24px;
   background: #ffffff;
@@ -413,9 +420,16 @@ button:disabled {
 .post-card p,
 .detail-panel p,
 .comment p,
-.auth-panel p {
+.auth-panel p,
+.empty-state p {
   color: #4e5968;
   line-height: 1.7;
+}
+
+.empty-state h2 {
+  margin-bottom: 8px;
+  color: #111111;
+  font-size: 20px;
 }
 
 .post-card__venue {
@@ -561,6 +575,7 @@ textarea {
   margin-top: 24px;
 }
 
+.pagination a,
 .pagination button,
 .pagination span {
   min-width: 40px;
@@ -572,10 +587,17 @@ textarea {
   font-weight: 800;
 }
 
+.pagination a,
 .pagination span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.pagination a:hover {
+  border-color: #ef3f7b;
   color: #ef3f7b;
 }
 

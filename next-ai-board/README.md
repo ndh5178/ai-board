@@ -146,3 +146,26 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 - 로그인/회원가입 성공 후 `next` 주소로 다시 이동
 - 로그인한 상태에서는 헤더의 로그인 버튼이 사용자 이름으로 바뀌고, 옆에 로그아웃 버튼이 표시됨
 - 로그아웃 버튼은 HTML form으로 `/api/auth/logout`에 POST 요청을 보내고, 세션 쿠키 삭제 후 `/login`으로 이동함
+
+## Posts CRUD API
+
+이 브랜치에서는 게시글 화면을 mock 데이터에서 DB/API 기반 흐름으로 전환했습니다.
+
+추가한 서버 로직:
+- `src/lib/posts.ts`: 게시글 목록/상세 조회, 태그 파싱, 화면용 데이터 변환
+- `GET /api/posts`: 게시글 목록 조회, 검색, 태그 필터, 페이징
+- `POST /api/posts`: 로그인한 사용자의 게시글 생성
+- `GET /api/posts/[id]`: 게시글 상세 조회
+- `PATCH /api/posts/[id]`: 작성자 또는 관리자만 게시글 수정
+- `DELETE /api/posts/[id]`: 작성자 또는 관리자만 게시글 삭제
+
+화면 연결:
+- `/`: DB에 저장된 최신 게시글을 홈 랭킹 영역에 표시
+- `/posts`: DB 게시글 목록, 검색, 태그 필터, 페이징 표시
+- `/posts/new`: 로그인한 사용자만 게시글 작성 가능
+- `/posts/[id]`: DB 게시글 상세 표시
+- `/posts/[id]/edit`: 작성자 또는 관리자만 수정 가능
+
+현재 단계:
+- 게시글 CRUD는 DB/API에 연결되었습니다.
+- 댓글은 아직 mock 데이터를 사용하므로 다음 작업에서 댓글 API와 DB 연결이 필요합니다.

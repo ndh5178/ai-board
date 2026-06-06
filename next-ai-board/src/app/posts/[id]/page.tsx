@@ -2,8 +2,12 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { CommentForm } from "@/components/comments/CommentForm";
 import { CommentList } from "@/components/comments/CommentList";
 import { PageShell } from "@/components/layout/PageShell";
+import { DeletePostButton } from "@/components/posts/DeletePostButton";
 import { TagBadge } from "@/components/tags/TagBadge";
-import { findPostById, mockComments } from "@/lib/mock-posts";
+import { mockComments } from "@/lib/mock-posts";
+import { getPostById } from "@/lib/posts";
+import { getSession } from "@/lib/session";
+import { notFound } from "next/navigation";
 
 type PostDetailPageProps = {
   params: Promise<{
@@ -13,14 +17,30 @@ type PostDetailPageProps = {
 
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const { id } = await params;
-  const post = findPostById(id);
+  const [post, session] = await Promise.all([getPostById(id), getSession()]);
+
+  if (!post) {
+    notFound();
+  }
+
+  const canManagePost =
+    session?.userId === post.authorId || session?.role === "ADMIN";
 
   return (
     <PageShell
       eyebrow="Post"
       title={post.title}
       description={`${post.authorName} · ${post.createdAt}`}
-      actions={<ButtonLink href={`/posts/${post.id}/edit`} variant="secondary">수정</ButtonLink>}
+      actions={
+        canManagePost ? (
+          <>
+            <ButtonLink href={`/posts/${post.id}/edit`} variant="secondary">
+              수정
+            </ButtonLink>
+            <DeletePostButton postId={post.id} />
+          </>
+        ) : null
+      }
     >
       <article className="detail-panel">
         <div className="tag-row">

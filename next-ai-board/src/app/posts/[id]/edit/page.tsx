@@ -1,6 +1,8 @@
 import { PageShell } from "@/components/layout/PageShell";
 import { PostForm } from "@/components/posts/PostForm";
-import { findPostById } from "@/lib/mock-posts";
+import { getPostById } from "@/lib/posts";
+import { requireAuth } from "@/lib/require-auth";
+import { notFound, redirect } from "next/navigation";
 
 type EditPostPageProps = {
   params: Promise<{
@@ -10,7 +12,18 @@ type EditPostPageProps = {
 
 export default async function EditPostPage({ params }: EditPostPageProps) {
   const { id } = await params;
-  const post = findPostById(id);
+  const [session, post] = await Promise.all([
+    requireAuth(`/posts/${id}/edit`),
+    getPostById(id),
+  ]);
+
+  if (!post) {
+    notFound();
+  }
+
+  if (post.authorId !== session.userId && session.role !== "ADMIN") {
+    redirect(`/posts/${id}`);
+  }
 
   return (
     <PageShell
@@ -20,6 +33,7 @@ export default async function EditPostPage({ params }: EditPostPageProps) {
     >
       <PostForm
         mode="edit"
+        postId={post.id}
         title={post.title}
         content={post.content}
         tags={post.tags.join(", ")}

@@ -1,15 +1,24 @@
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { PostList } from "@/components/posts/PostList";
-import { mockPosts, popularTags } from "@/lib/mock-posts";
+import { getPopularTags, listPosts } from "@/lib/posts";
 
-const heroItems = mockPosts.slice(0, 3);
 const dealItems = [
   { title: "AI 글쓰기 파트너", place: "Agent Studio", rate: "50%", price: "초안 자동 생성" },
   { title: "유사 게시글 추천", place: "RAG Lab", rate: "40%", price: "관련 글 3개 요약" },
   { title: "외부 데이터 브리핑", place: "MCP Hall", rate: "30%", price: "날씨/뉴스 연결" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const [{ posts }, popularTags] = await Promise.all([
+    listPosts({ page: 1 }),
+    getPopularTags(),
+  ]);
+  const heroItems = posts.slice(0, 3);
+  const genreItems =
+    popularTags.length > 0
+      ? popularTags.concat(["인증", "검색", "댓글"])
+      : ["RAG", "MCP", "Agent", "Next.js", "Prisma", "인증", "검색", "댓글"];
+
   return (
     <main className="ticket-page">
       <section className="ticket-hero">
@@ -25,22 +34,30 @@ export default function Home() {
           </div>
         </div>
         <div className="ticket-hero__posters" aria-label="추천 게시글">
-          {heroItems.map((post, index) => (
-            <article
-              className="poster-card"
-              key={post.id}
-              style={{ "--poster-accent": post.accent } as React.CSSProperties}
-            >
-              <span className="poster-card__rank">{index + 1}</span>
-              <strong>{post.title}</strong>
-              <small>{post.venue}</small>
+          {heroItems.length > 0 ? (
+            heroItems.map((post, index) => (
+              <article
+                className="poster-card"
+                key={post.id}
+                style={{ "--poster-accent": post.accent } as React.CSSProperties}
+              >
+                <span className="poster-card__rank">{index + 1}</span>
+                <strong>{post.title}</strong>
+                <small>{post.venue}</small>
+              </article>
+            ))
+          ) : (
+            <article className="poster-card" style={{ "--poster-accent": "#ef3f7b" } as React.CSSProperties}>
+              <span className="poster-card__rank">1</span>
+              <strong>첫 게시글을 기다리는 중입니다</strong>
+              <small>AI 게시판</small>
             </article>
-          ))}
+          )}
         </div>
       </section>
 
       <section className="genre-strip" aria-label="장르 바로가기">
-        {popularTags.concat(["인증", "검색", "댓글"]).map((tag) => (
+        {genreItems.map((tag) => (
           <span key={tag}>{tag}</span>
         ))}
       </section>
@@ -52,7 +69,7 @@ export default function Home() {
             랭킹 전체보기
           </ButtonLink>
         </div>
-        <PostList posts={mockPosts} />
+        <PostList posts={posts} />
       </section>
 
       <section className="section">
