@@ -254,7 +254,7 @@ button:disabled {
   margin-bottom: 36px;
 }
 
-.genre-strip span {
+.genre-strip a {
   min-height: 48px;
   display: inline-flex;
   align-items: center;
@@ -487,6 +487,11 @@ button:disabled {
   font-weight: 700;
 }
 
+.tag--active {
+  background: #ef3f7b;
+  color: #ffffff;
+}
+
 .toolbar {
   display: grid;
   gap: 16px;
@@ -496,6 +501,75 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 92px;
   gap: 10px;
+}
+
+.filter-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+}
+
+.filter-summary strong {
+  color: #111111;
+  font-size: 15px;
+}
+
+.filter-summary p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 0;
+  color: #4e5968;
+  font-size: 14px;
+}
+
+.filter-summary__reset {
+  flex: 0 0 auto;
+  color: #ef3f7b;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.tag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.tag-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+}
+
+.tag-card:hover {
+  border-color: #ef3f7b;
+  box-shadow: 0 12px 28px rgba(17, 17, 17, 0.08);
+}
+
+.tag-card strong {
+  color: #111111;
+  font-size: 17px;
+}
+
+.tag-card span {
+  color: #8b8b96;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.genre-strip a:hover {
+  border-color: #ef3f7b;
+  color: #ef3f7b;
 }
 
 .form-panel,
@@ -686,6 +760,7 @@ textarea {
 
   .site-header__inner,
   .page__header,
+  .filter-summary,
   .hero,
   .ticket-hero {
     align-items: flex-start;

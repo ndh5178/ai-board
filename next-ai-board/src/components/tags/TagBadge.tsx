@@ -1,18 +1,21 @@
 import Link from "next/link";
 
 type TagBadgeProps = {
+  active?: boolean;
   label: string;
   href?: string;
 };
 
-export function TagBadge({ label, href }: TagBadgeProps) {
+export function TagBadge({ active = false, label, href }: TagBadgeProps) {
+  const className = active ? "tag tag--active" : "tag";
+
   if (href) {
     return (
-      <Link className="tag" href={href}>
+      <Link className={className} href={href}>
         {label}
       </Link>
     );
   }
 
-  return <span className="tag">{label}</span>;
+  return <span className={className}>{label}</span>;
 }

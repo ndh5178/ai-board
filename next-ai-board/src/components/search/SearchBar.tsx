@@ -1,8 +1,9 @@
 type SearchBarProps = {
   query?: string;
+  tag?: string;
 };
 
-export function SearchBar({ query = "" }: SearchBarProps) {
+export function SearchBar({ query = "", tag = "" }: SearchBarProps) {
   return (
     <form className="search-bar">
       <input
@@ -11,6 +12,7 @@ export function SearchBar({ query = "" }: SearchBarProps) {
         type="search"
         defaultValue={query}
       />
+      {tag ? <input name="tag" type="hidden" value={tag} /> : null}
       <button className="button button--primary">
         검색
       </button>

@@ -3,6 +3,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Pagination } from "@/components/pagination/Pagination";
 import { PostList } from "@/components/posts/PostList";
 import { SearchBar } from "@/components/search/SearchBar";
+import { SearchFilterSummary } from "@/components/search/SearchFilterSummary";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { getPopularTags, listPosts } from "@/lib/posts";
 
@@ -28,6 +29,22 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
       }),
       getPopularTags(),
     ]);
+  const buildTagHref = (tagName: string) => {
+    const nextParams = new URLSearchParams();
+
+    if (query) {
+      nextParams.set("q", query);
+    }
+
+    nextParams.set("tag", tagName);
+
+    return `/posts?${nextParams.toString()}`;
+  };
+  const emptyTitle = query || tag ? "조건에 맞는 게시글이 없습니다" : undefined;
+  const emptyMessage =
+    query || tag
+      ? "검색어를 바꾸거나 필터를 초기화해 다시 확인해 보세요."
+      : undefined;
 
   return (
     <PageShell
@@ -37,18 +54,24 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
       actions={<ButtonLink href="/posts/new">글쓰기</ButtonLink>}
     >
       <section className="toolbar">
-        <SearchBar query={query} />
+        <SearchBar query={query} tag={tag} />
         <div className="tag-row">
           {popularTags.map((tagName) => (
             <TagBadge
+              active={tagName.toLowerCase() === tag.toLowerCase()}
               key={tagName}
               label={tagName}
-              href={`/posts?tag=${encodeURIComponent(tagName)}`}
+              href={buildTagHref(tagName)}
             />
           ))}
         </div>
+        <SearchFilterSummary query={query} tag={tag} totalCount={totalCount} />
       </section>
-      <PostList posts={posts} />
+      <PostList
+        emptyMessage={emptyMessage}
+        emptyTitle={emptyTitle}
+        posts={posts}
+      />
       <Pagination
         currentPage={currentPage}
         query={query}

@@ -121,6 +121,29 @@ export async function getPopularTags(limit = 8) {
     .map((tag) => tag.name);
 }
 
+export async function getTagStats() {
+  const tags = await prisma.tag.findMany({
+    include: {
+      _count: {
+        select: {
+          posts: true,
+        },
+      },
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+
+  return tags
+    .map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+      postCount: tag._count.posts,
+    }))
+    .sort((a, b) => b.postCount - a.postCount || a.name.localeCompare(b.name));
+}
+
 export async function listPosts({
   page = 1,
   query = "",

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { PostList } from "@/components/posts/PostList";
 import { getPopularTags, listPosts } from "@/lib/posts";
@@ -14,10 +15,7 @@ export default async function Home() {
     getPopularTags(),
   ]);
   const heroItems = posts.slice(0, 3);
-  const genreItems =
-    popularTags.length > 0
-      ? popularTags.concat(["인증", "검색", "댓글"])
-      : ["RAG", "MCP", "Agent", "Next.js", "Prisma", "인증", "검색", "댓글"];
+  const genreItems = popularTags;
 
   return (
     <main className="ticket-page">
@@ -56,11 +54,20 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="genre-strip" aria-label="장르 바로가기">
-        {genreItems.map((tag) => (
-          <span key={tag}>{tag}</span>
-        ))}
-      </section>
+      {genreItems.length > 0 ? (
+        <section className="genre-strip" aria-label="장르 바로가기">
+          {genreItems.map((tag) => (
+            <Link href={`/posts?tag=${encodeURIComponent(tag)}`} key={tag}>
+              {tag}
+            </Link>
+          ))}
+        </section>
+      ) : (
+        <section className="empty-state">
+          <h2>아직 태그가 없습니다</h2>
+          <p>게시글을 작성하면서 태그를 입력하면 이곳에 표시됩니다.</p>
+        </section>
+      )}
 
       <section className="section">
         <div className="section__header">
