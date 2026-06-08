@@ -4,7 +4,7 @@ import { CommentList } from "@/components/comments/CommentList";
 import { PageShell } from "@/components/layout/PageShell";
 import { DeletePostButton } from "@/components/posts/DeletePostButton";
 import { TagBadge } from "@/components/tags/TagBadge";
-import { mockComments } from "@/lib/mock-posts";
+import { listCommentsByPostId } from "@/lib/comments";
 import { getPostById } from "@/lib/posts";
 import { getSession } from "@/lib/session";
 import { notFound } from "next/navigation";
@@ -17,7 +17,11 @@ type PostDetailPageProps = {
 
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const { id } = await params;
-  const [post, session] = await Promise.all([getPostById(id), getSession()]);
+  const session = await getSession();
+  const [post, comments] = await Promise.all([
+    getPostById(id),
+    listCommentsByPostId(id, session?.userId, session?.role),
+  ]);
 
   if (!post) {
     notFound();
@@ -53,10 +57,10 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
       <section className="section">
         <div className="section__header">
           <h2>댓글</h2>
-          <span>{mockComments.length}</span>
+          <span>{comments.length}</span>
         </div>
-        <CommentForm />
-        <CommentList comments={mockComments} />
+        <CommentForm postId={post.id} isLoggedIn={Boolean(session)} />
+        <CommentList comments={comments} />
       </section>
     </PageShell>
   );

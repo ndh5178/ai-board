@@ -49,6 +49,27 @@ npm run dev
 http://localhost:3000
 ```
 
+## Local Dev Scripts
+
+Windows PowerShell에서 DB와 개발 서버를 한 번에 켜고 끄기 위한 스크립트입니다.
+
+시작:
+
+```powershell
+cd C:\Users\user\Desktop\정글\ai-board\next-ai-board
+powershell -ExecutionPolicy Bypass -File .\dev-start.ps1
+```
+
+종료:
+
+```powershell
+cd C:\Users\user\Desktop\정글\ai-board\next-ai-board
+powershell -ExecutionPolicy Bypass -File .\dev-stop.ps1
+```
+
+`dev-start.ps1`은 PostgreSQL Docker 컨테이너를 시작하거나 생성한 뒤 Prisma 마이그레이션을 실행하고 Next.js 개발 서버를 실행합니다.
+`dev-stop.ps1`은 3000번 포트를 사용하는 Next.js 서버만 종료하고 PostgreSQL 컨테이너를 중지합니다.
+
 ## Board Pages
 
 이 브랜치에서는 기본 게시판 기능을 위한 정적 페이지 UI를 추가했습니다.
@@ -169,3 +190,23 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 현재 단계:
 - 게시글 CRUD는 DB/API에 연결되었습니다.
 - 댓글은 아직 mock 데이터를 사용하므로 다음 작업에서 댓글 API와 DB 연결이 필요합니다.
+
+## Comments API
+
+이 브랜치에서는 게시글 상세 페이지의 댓글 기능을 mock 데이터에서 DB/API 기반 흐름으로 전환했습니다.
+
+추가한 서버 로직:
+- `src/lib/comments.ts`: 댓글 목록 조회와 화면용 데이터 변환
+- `GET /api/posts/[id]/comments`: 특정 게시글의 댓글 목록 조회
+- `POST /api/posts/[id]/comments`: 로그인한 사용자의 댓글 작성
+- `PATCH /api/comments/[id]`: 작성자 또는 관리자만 댓글 수정
+- `DELETE /api/comments/[id]`: 작성자 또는 관리자만 댓글 삭제
+
+화면 연결:
+- `/posts/[id]`: DB에 저장된 실제 댓글 표시
+- 댓글 폼: 로그인하지 않은 사용자는 로그인 페이지로 이동
+- 댓글 목록: 작성자 또는 관리자에게만 수정/삭제 버튼 표시
+
+현재 단계:
+- 게시글과 댓글의 기본 CRUD는 DB/API에 연결되었습니다.
+- 다음 작업에서는 태그 전용 화면, 검색 고도화, 또는 AI 기능 연결을 진행할 수 있습니다.
