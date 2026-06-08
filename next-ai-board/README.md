@@ -246,3 +246,22 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 현재 단계:
 - 로그인한 사용자의 개인 활동 데이터를 DB에서 조회해 보여줍니다.
 - 프로필 수정, 비밀번호 변경 같은 설정 변경 기능은 아직 구현하지 않았습니다.
+
+## Account Settings
+
+이 브랜치에서는 설정 페이지에서 실제 계정 관리 기능을 사용할 수 있게 했습니다.
+
+추가한 API route:
+- `PATCH /api/me/password`: 현재 비밀번호를 확인한 뒤 새 비밀번호로 변경
+- `DELETE /api/me`: 비밀번호와 확인 문구를 검증한 뒤 회원 탈퇴 처리
+
+추가한 화면 컴포넌트:
+- `src/components/me/PasswordChangeForm.tsx`: 비밀번호 변경 폼
+- `src/components/me/DeleteAccountForm.tsx`: 회원 탈퇴 폼
+
+화면 연결:
+- `/settings`: 계정 정보, 비밀번호 변경, 회원 탈퇴 영역 표시
+
+주의:
+- 회원 탈퇴 시 Prisma 관계 설정에 따라 사용자가 작성한 게시글과 댓글도 함께 삭제됩니다.
+- 탈퇴가 성공하면 세션 쿠키를 삭제하고 회원가입 페이지로 이동합니다.
