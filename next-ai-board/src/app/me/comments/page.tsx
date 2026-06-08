@@ -1,18 +1,19 @@
 import { PageShell } from "@/components/layout/PageShell";
+import { MyCommentList } from "@/components/me/MyCommentList";
+import { listMyComments } from "@/lib/my-page";
 import { requireAuth } from "@/lib/require-auth";
 
 export default async function MyCommentsPage() {
-  await requireAuth("/me/comments");
+  const session = await requireAuth("/me/comments");
+  const comments = await listMyComments(session.userId);
 
   return (
     <PageShell
-      description="내가 남긴 댓글을 모아서 확인할 예정인 페이지입니다."
+      description="내가 남긴 댓글을 모아서 확인합니다."
       eyebrow="My"
       title="내 댓글"
     >
-      <section className="detail-panel">
-        <p>댓글 API 연결 후 내가 작성한 댓글 목록이 표시됩니다.</p>
-      </section>
+      <MyCommentList comments={comments} />
     </PageShell>
   );
 }

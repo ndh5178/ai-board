@@ -432,6 +432,79 @@ button:disabled {
   font-size: 20px;
 }
 
+.my-dashboard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.my-dashboard div {
+  display: grid;
+  gap: 6px;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+}
+
+.my-dashboard strong {
+  color: #ef3f7b;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.my-dashboard span {
+  color: #4e5968;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.my-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.my-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.my-list__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+}
+
+.my-list__item h2 {
+  margin: 0 0 8px;
+  color: #111111;
+  font-size: 18px;
+}
+
+.my-list__item h2:hover {
+  color: #ef3f7b;
+}
+
+.my-list__item p {
+  margin: 0;
+  color: #4e5968;
+  line-height: 1.6;
+}
+
+.my-list__item span {
+  flex: 0 0 auto;
+  color: #8b8b96;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .post-card__venue {
   margin: 12px 0 2px;
   color: #55555f;
@@ -782,8 +855,13 @@ textarea {
 
   .ticket-hero__posters,
   .genre-strip,
+  .my-dashboard,
   .deal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .my-list__item {
+    flex-direction: column;
   }
 
   .ticket-hero__posters {
