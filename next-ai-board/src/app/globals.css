@@ -721,6 +721,70 @@ button:disabled {
   font-weight: 800;
 }
 
+.rag-preview {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  background: #fafafa;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+}
+
+.rag-preview__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rag-preview__header strong {
+  color: #111111;
+  font-size: 16px;
+}
+
+.rag-preview__header p,
+.rag-preview__empty {
+  margin: 6px 0 0;
+  color: #4e5968;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.rag-preview__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rag-preview__list li {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+}
+
+.rag-preview__list a {
+  color: #111111;
+  font-weight: 900;
+}
+
+.rag-preview__list span {
+  color: #ef3f7b;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.rag-preview__list p {
+  margin: 0;
+  color: #4e5968;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 input,
 textarea {
   width: 100%;
@@ -886,6 +950,7 @@ textarea {
   .site-header__inner,
   .page__header,
   .filter-summary,
+  .rag-preview__header,
   .hero,
   .ticket-hero {
     align-items: flex-start;

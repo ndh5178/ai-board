@@ -265,3 +265,29 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 주의:
 - 회원 탈퇴 시 Prisma 관계 설정에 따라 사용자가 작성한 게시글과 댓글도 함께 삭제됩니다.
 - 탈퇴가 성공하면 세션 쿠키를 삭제하고 회원가입 페이지로 이동합니다.
+
+## RAG Foundation
+
+이 브랜치에서는 RAG 기능의 기본 뼈대를 추가했습니다.
+
+선택한 방향:
+- Vector DB: PostgreSQL + pgvector
+- Embedding 저장 위치: `post_embeddings` 테이블
+- 추천 기능: 글 작성/수정 화면에서 비슷한 기존 게시글 찾기
+
+추가한 DB 구조:
+- `prisma/schema.prisma`: `PostEmbedding` 모델 추가
+- `prisma/migrations/20260608090000_add_post_embeddings/migration.sql`: pgvector 확장과 `post_embeddings` 테이블 추가
+
+추가한 서버 로직:
+- `src/lib/rag.ts`: 게시글 텍스트를 임베딩으로 바꾸고 유사 게시글을 찾는 함수
+- `POST /api/rag/similar-posts`: 제목/본문을 받아 유사 게시글 목록 반환
+
+화면 연결:
+- `src/components/posts/PostForm.tsx`: 글쓰기/수정 폼에 `비슷한 글 찾기` 버튼과 추천 결과 영역 추가
+- `POST /api/posts`: 게시글 생성 후 임베딩 저장
+- `PATCH /api/posts/[id]`: 게시글 수정 후 임베딩 갱신
+
+현재 단계:
+- 외부 LLM API 키 없이 구조를 먼저 이해할 수 있도록 개발용 로컬 임베딩을 사용합니다.
+- 다음 단계에서 OpenAI Embedding 같은 상용 임베딩 모델로 `src/lib/rag.ts`의 임베딩 생성 부분을 교체하면 됩니다.

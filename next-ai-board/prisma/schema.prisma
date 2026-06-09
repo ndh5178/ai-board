@@ -42,6 +42,7 @@ model Post {
   author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments  Comment[]
   tags      PostTag[]
+  embedding PostEmbedding?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -49,6 +50,17 @@ model Post {
   @@index([createdAt])
   @@index([status])
   @@map("posts")
+}
+
+model PostEmbedding {
+  postId     String                  @id
+  post       Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  embedding  Unsupported("vector(384)")
+  sourceText String                  @db.Text
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  @@map("post_embeddings")
 }
 
 model Comment {

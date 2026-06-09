@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { buildExcerpt, connectTags, getPostById, parseTags } from "@/lib/posts";
+import { syncPostEmbedding } from "@/lib/rag";
 import { getSession } from "@/lib/session";
 
 type RouteContext = {
@@ -87,6 +88,12 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       },
     }),
   ]);
+
+  await syncPostEmbedding({
+    postId: id,
+    title,
+    content,
+  });
 
   return NextResponse.json({ id });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { buildExcerpt, connectTags, listPosts, parseTags } from "@/lib/posts";
+import { syncPostEmbedding } from "@/lib/rag";
 import { getSession } from "@/lib/session";
 
 type PostBody = {
@@ -58,6 +59,12 @@ export async function POST(request: Request) {
     select: {
       id: true,
     },
+  });
+
+  await syncPostEmbedding({
+    postId: post.id,
+    title,
+    content,
   });
 
   return NextResponse.json({ id: post.id }, { status: 201 });
