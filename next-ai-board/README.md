@@ -419,3 +419,22 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 관련 공식 문서:
 - OpenWeather Current Weather API: https://openweathermap.org/api/current
 - OpenWeather Geocoding API: https://openweathermap.org/api/geocoding-api
+
+## MCP Server Basic Structure
+
+이 브랜치에서는 JSON-RPC 요청을 받을 수 있는 MCP 서버 기본 구조를 추가했습니다.
+
+추가한 파일:
+- `src/mcp/types.ts`: JSON-RPC 요청/응답 타입과 MCP tool 타입 정의
+- `src/mcp/server.ts`: MCP method 분기 처리와 JSON-RPC 성공/에러 응답 생성
+- `src/app/api/mcp/route.ts`: 브라우저나 서버에서 호출할 수 있는 Next.js API Route
+
+현재 지원하는 method:
+- `initialize`: MCP protocol version, server info, tools capability 반환
+- `notifications/initialized`: 초기화 완료 notification 처리
+- `tools/list`: 현재 등록된 MCP tool 목록 반환
+- `tools/call`: 아직 구현되지 않은 tool에 대해 명확한 `Tool not found` 에러 반환
+
+현재 단계:
+- 실제 날씨 API tool은 아직 연결하지 않았습니다.
+- 다음 작업에서 `tools` 목록에 `weather_current`를 추가하고, `tools/call`에서 OpenWeather 호출로 연결합니다.
