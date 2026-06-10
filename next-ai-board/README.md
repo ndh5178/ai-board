@@ -483,3 +483,104 @@ tools/call weather_current
 실패 처리:
 - 외부 API 호출에 실패하면 글쓰기 기본 기능은 그대로 유지하고 MCP 영역에 오류 메시지만 표시합니다.
 - MCP 응답 형식이 예상과 다르면 본문을 수정하지 않고 실패 메시지를 표시합니다.
+
+## MCP Demo Guide
+
+MCP 기능을 발표하거나 복습할 때는 다음 순서로 시연합니다.
+
+사전 준비:
+- Docker Desktop 실행
+- PostgreSQL 컨테이너 실행
+- `.env`에 `DATABASE_URL`, `SESSION_SECRET`, `OPEN_METEO_DEFAULT_LOCATION`, `OPEN_METEO_LANGUAGE` 설정
+- Open-Meteo는 기본 비상업적 API 흐름에서 API Key가 필요하지 않습니다.
+
+서버 실행:
+
+```powershell
+cd C:\Users\user\Desktop\정글\ai-board\next-ai-board
+npm run dev
+```
+
+API 단독 확인:
+
+```powershell
+$body = @{
+  jsonrpc = "2.0"
+  id = 1
+  method = "tools/call"
+  params = @{
+    name = "weather_current"
+    arguments = @{
+      location = "Seoul"
+    }
+  }
+} | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/mcp" `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+웹 화면 시연:
+
+```text
+1. 로그인한다.
+2. /posts/new로 이동한다.
+3. 날씨 브리핑 영역에서 지역을 입력한다. 예: Seoul
+4. 브리핑 추가 버튼을 누른다.
+5. 본문 textarea에 날씨 브리핑 초안이 추가되는지 확인한다.
+6. 제목, 태그를 입력하고 게시글 등록을 눌러 일반 글쓰기 흐름이 유지되는지 확인한다.
+```
+
+설명할 핵심 흐름:
+
+```text
+글쓰기 화면
+  -> POST /api/mcp
+    -> JSON-RPC tools/call
+      -> weather_current tool
+        -> Open-Meteo Geocoding API
+        -> Open-Meteo Weather Forecast API
+      <- summary, draft 반환
+  <- 본문 textarea에 초안 추가
+```
+
+예상 응답 형태:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Seoul, Seoul, 대한민국 현재 날씨는 맑음, 기온은 20°C입니다."
+      }
+    ],
+    "structuredContent": {
+      "displayLocation": "Seoul, Seoul, 대한민국",
+      "summary": "Seoul, Seoul, 대한민국 현재 날씨는 맑음, 기온은 20°C입니다.",
+      "draft": "오늘의 날씨 브리핑: Seoul, Seoul, 대한민국..."
+    }
+  }
+}
+```
+
+실패 상황:
+- 지역명이 너무 짧거나 비어 있으면 `-32602` 에러를 반환합니다.
+- 지역을 찾지 못하거나 Open-Meteo 호출이 실패하면 `-32603` 에러를 반환합니다.
+- MCP 호출이 실패해도 게시글 저장 기능은 막지 않습니다.
+
+현재 한계:
+- 실제 독립 실행형 MCP 서버가 아니라 Next.js API Route 안에서 JSON-RPC 흐름을 구현했습니다.
+- `weather_code`는 코드 내부 매핑으로 한국어 설명을 만듭니다.
+- 본문에 추가된 초안은 자동 저장되지 않고 사용자가 직접 확인한 뒤 저장합니다.
+
+다음 개선점:
+- MCP 서버를 독립 실행형 프로세스로 분리
+- 더 많은 외부 도구 추가
+- AI Agent가 상황에 따라 `weather_current` tool을 선택하도록 연결
+- MCP 응답을 게시글 템플릿으로 더 자연스럽게 다듬기
