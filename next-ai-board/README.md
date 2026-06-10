@@ -389,3 +389,33 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 - 실제 MCP 서버 구현 전에 `initialize`, `tools/list`, `tools/call` 흐름을 문서로 정리했습니다.
 - API Key는 `.env`에서 서버 코드만 읽고, 브라우저에는 노출하지 않는 방향으로 관리합니다.
 - 자세한 학습 노트는 `md/MCP.md`에 정리했습니다.
+
+## MCP External API Strategy
+
+이 브랜치에서는 1차 MCP 기능에서 사용할 외부 API와 API Key 관리 전략을 정리했습니다.
+
+선택한 외부 API:
+- OpenWeather Current Weather API
+
+선택 이유:
+- 과제의 MCP 예시 중 "날씨 실시간 브리핑 글 작성"과 바로 연결됩니다.
+- 현재 날씨 조회 결과를 게시글 초안이나 글쓰기 보조 문장으로 바꾸기 쉽습니다.
+- 도시명 검색은 OpenWeather Geocoding API로 좌표를 찾고, Current Weather API는 좌표 기반으로 호출할 수 있습니다.
+- API Key가 필요한 서비스라서 과제 요구사항의 API Key / 권한 관리 전략을 설명하기 좋습니다.
+
+사용할 환경변수:
+- `OPENWEATHER_API_KEY`: OpenWeather API Key
+- `OPENWEATHER_DEFAULT_LOCATION`: 기본 조회 지역 예시. 기본값 후보는 `Seoul,KR`
+- `OPENWEATHER_UNITS`: 온도 단위. `metric`을 사용하면 섭씨 기준으로 처리할 수 있습니다.
+- `OPENWEATHER_LANG`: 응답 언어. 한국어 응답을 위해 `kr`을 사용합니다.
+
+관리 전략:
+- 실제 API Key는 `.env`에만 저장합니다.
+- `.env.example`에는 필요한 변수 이름과 예시값만 둡니다.
+- 브라우저 컴포넌트에서는 API Key를 직접 읽지 않습니다.
+- 외부 API 호출은 MCP 서버 또는 Next.js 서버 코드에서만 수행합니다.
+- API Key가 없을 때는 MCP tool이 명확한 설정 오류를 반환하고, 게시글 저장 같은 핵심 기능은 막지 않는 방향으로 처리합니다.
+
+관련 공식 문서:
+- OpenWeather Current Weather API: https://openweathermap.org/api/current
+- OpenWeather Geocoding API: https://openweathermap.org/api/geocoding-api
