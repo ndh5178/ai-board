@@ -362,3 +362,30 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 - `src/components/comments/CommentList.tsx`
 - `src/app/globals.css`
 - `src/lib/posts.ts`
+
+## MCP Integration Planning
+
+이 브랜치에서는 MCP 기능을 구현하기 전에 MCP 구조와 JSON-RPC 요청 흐름을 먼저 정리했습니다.
+
+정리한 방향:
+- MCP는 AI 애플리케이션이 외부 도구를 표준화된 방식으로 호출하기 위한 프로토콜입니다.
+- MCP는 Host, Client, Server 역할로 나뉘며, 서버는 tools/resources/prompts 같은 기능을 제공합니다.
+- MCP의 메시지 형식은 JSON-RPC 2.0을 기반으로 합니다.
+- 이번 프로젝트의 1차 MCP 기능은 외부 날씨 데이터를 가져오는 tool로 시작합니다.
+
+예상 연결 흐름:
+
+```text
+글쓰기 화면
+  -> Next.js API Route
+    -> MCP JSON-RPC request
+      -> MCP Server
+        -> 외부 날씨 API
+      <- MCP JSON-RPC response
+  <- 게시글 초안 또는 브리핑 데이터
+```
+
+현재 단계:
+- 실제 MCP 서버 구현 전에 `initialize`, `tools/list`, `tools/call` 흐름을 문서로 정리했습니다.
+- API Key는 `.env`에서 서버 코드만 읽고, 브라우저에는 노출하지 않는 방향으로 관리합니다.
+- 자세한 학습 노트는 `md/MCP.md`에 정리했습니다.
