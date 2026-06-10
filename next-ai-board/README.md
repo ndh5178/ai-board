@@ -623,3 +623,50 @@ Invoke-RestMethod `
 - 외부 도구 실패 시 전체 글쓰기 기능을 막지 않고 부분 결과를 반환하는 방향으로 설계합니다.
 
 자세한 학습 노트는 `md/AGENT.md`에 정리했습니다.
+
+## Agent API
+
+이 브랜치에서는 글쓰기 보조 Agent를 실행하는 서버 API를 추가했습니다.
+
+추가한 파일:
+- `src/agent/writing-assistant.ts`: Agent 실행 흐름, tool 호출 기록, 초안/태그/검토 의견 생성
+- `src/app/api/agent/writing-assistant/route.ts`: 글쓰기 보조 Agent API Route
+
+API 경로:
+
+```text
+POST /api/agent/writing-assistant
+```
+
+요청 예시:
+
+```json
+{
+  "title": "비 오는 날 개발 기록",
+  "content": "오늘 작업한 MCP 기능을 정리하고 싶다.",
+  "tags": "MCP",
+  "intent": "write_post",
+  "weatherLocation": "Seoul"
+}
+```
+
+실행 흐름:
+
+```text
+Agent API
+  -> AgentInput 검증
+  -> RAG 유사 게시글 검색
+  -> weatherLocation이 있으면 MCP weather_current 호출
+  -> draft_writer로 초안 생성
+  -> tag_suggester로 태그 후보 생성
+  -> AgentResult 반환
+```
+
+무한 루프 방지:
+- `AGENT_MAX_STEPS` 값인 4단계까지만 실행합니다.
+- 같은 도구를 같은 실행 안에서 성공 상태로 반복 호출하지 않습니다.
+- RAG나 MCP가 실패해도 서버가 죽지 않고 부분 결과를 반환합니다.
+
+현재 단계:
+- 외부 LLM Function Calling을 바로 붙이지 않고, 규칙 기반 Agent 루프로 먼저 구현했습니다.
+- 다음 단계에서 글쓰기 화면에 Agent 실행 버튼과 결과 표시 영역을 연결합니다.
