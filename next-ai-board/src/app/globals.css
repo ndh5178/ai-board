@@ -953,6 +953,31 @@ button:disabled {
   line-height: 1.6;
 }
 
+.mcp-preview__field {
+  max-width: 360px;
+}
+
+.mcp-preview__result {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+}
+
+.mcp-preview__result strong {
+  color: #111111;
+  font-size: 15px;
+}
+
+.mcp-preview__result p {
+  margin: 0;
+  color: #4e5968;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 input,
 textarea {
   width: 100%;

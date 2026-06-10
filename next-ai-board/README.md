@@ -362,3 +362,225 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 - `src/components/comments/CommentList.tsx`
 - `src/app/globals.css`
 - `src/lib/posts.ts`
+
+## MCP Integration Planning
+
+이 브랜치에서는 MCP 기능을 구현하기 전에 MCP 구조와 JSON-RPC 요청 흐름을 먼저 정리했습니다.
+
+정리한 방향:
+- MCP는 AI 애플리케이션이 외부 도구를 표준화된 방식으로 호출하기 위한 프로토콜입니다.
+- MCP는 Host, Client, Server 역할로 나뉘며, 서버는 tools/resources/prompts 같은 기능을 제공합니다.
+- MCP의 메시지 형식은 JSON-RPC 2.0을 기반으로 합니다.
+- 이번 프로젝트의 1차 MCP 기능은 외부 날씨 데이터를 가져오는 tool로 시작합니다.
+
+예상 연결 흐름:
+
+```text
+글쓰기 화면
+  -> Next.js API Route
+    -> MCP JSON-RPC request
+      -> MCP Server
+        -> 외부 날씨 API
+      <- MCP JSON-RPC response
+  <- 게시글 초안 또는 브리핑 데이터
+```
+
+현재 단계:
+- 실제 MCP 서버 구현 전에 `initialize`, `tools/list`, `tools/call` 흐름을 문서로 정리했습니다.
+- 외부 API 설정은 `.env`에서 서버 코드만 읽고, 브라우저에는 노출하지 않는 방향으로 관리합니다.
+- 자세한 학습 노트는 `md/MCP.md`에 정리했습니다.
+
+## MCP External API Strategy
+
+이 브랜치에서는 1차 MCP 기능에서 사용할 외부 API와 API Key 관리 전략을 정리했습니다.
+
+선택한 외부 API:
+- Open-Meteo Weather Forecast API
+
+선택 이유:
+- 과제의 MCP 예시 중 "날씨 실시간 브리핑 글 작성"과 바로 연결됩니다.
+- 현재 날씨 조회 결과를 게시글 초안이나 글쓰기 보조 문장으로 바꾸기 쉽습니다.
+- 도시명 검색은 Open-Meteo Geocoding API로 좌표를 찾고, Weather Forecast API는 좌표 기반으로 호출할 수 있습니다.
+- 기본 비상업적 API 흐름에서는 API Key 없이 바로 호출할 수 있어 개발과 시연이 쉽습니다.
+
+사용할 환경변수:
+- `OPEN_METEO_DEFAULT_LOCATION`: 기본 조회 지역 예시. 기본값 후보는 `Seoul`
+- `OPEN_METEO_LANGUAGE`: 지오코딩 결과 언어. 한국어 결과를 위해 `ko`를 사용합니다.
+
+관리 전략:
+- Open-Meteo 기본 API는 API Key 없이 사용합니다.
+- `.env.example`에는 기본 지역과 언어 설정만 둡니다.
+- 브라우저 컴포넌트에서는 API Key를 직접 읽지 않습니다.
+- 외부 API 호출은 MCP 서버 또는 Next.js 서버 코드에서만 수행합니다.
+- 외부 API 호출에 실패해도 게시글 저장 같은 핵심 기능은 막지 않는 방향으로 처리합니다.
+
+관련 공식 문서:
+- Open-Meteo Weather Forecast API: https://open-meteo.com/en/docs
+- Open-Meteo Geocoding API: https://open-meteo.com/en/docs/geocoding-api
+
+## MCP Server Basic Structure
+
+이 브랜치에서는 JSON-RPC 요청을 받을 수 있는 MCP 서버 기본 구조를 추가했습니다.
+
+추가한 파일:
+- `src/mcp/types.ts`: JSON-RPC 요청/응답 타입과 MCP tool 타입 정의
+- `src/mcp/server.ts`: MCP method 분기 처리와 JSON-RPC 성공/에러 응답 생성
+- `src/app/api/mcp/route.ts`: 브라우저나 서버에서 호출할 수 있는 Next.js API Route
+
+현재 지원하는 method:
+- `initialize`: MCP protocol version, server info, tools capability 반환
+- `notifications/initialized`: 초기화 완료 notification 처리
+- `tools/list`: 현재 등록된 MCP tool 목록 반환
+- `tools/call`: 아직 구현되지 않은 tool에 대해 명확한 `Tool not found` 에러 반환
+
+현재 단계:
+- 실제 날씨 API tool은 아직 연결하지 않았습니다.
+- 다음 작업에서 `tools` 목록에 `weather_current`를 추가하고, `tools/call`에서 Open-Meteo 호출로 연결합니다.
+
+## MCP Weather Tool
+
+이 브랜치에서는 MCP 서버에 실제 외부 날씨 데이터를 가져오는 `weather_current` tool을 연결했습니다.
+
+추가한 파일:
+- `src/mcp/tools/weather.ts`: Open-Meteo Geocoding API와 Weather Forecast API 호출 함수
+
+변경한 파일:
+- `src/mcp/server.ts`: `tools/list`에 `weather_current` 등록, `tools/call`에서 날씨 tool 실행
+
+동작 흐름:
+
+```text
+tools/call weather_current
+  -> location 입력값 확인
+  -> Open-Meteo Geocoding API로 좌표 조회
+  -> Open-Meteo Weather Forecast API로 현재 날씨 조회
+  -> 게시글 초안에 쓸 수 있는 summary, draft, structuredContent 반환
+```
+
+에러 처리:
+- 지역 입력값이 비어 있거나 너무 길면 `-32602` 에러를 반환합니다.
+- 지역을 찾지 못하거나 Open-Meteo 호출에 실패해도 서버가 죽지 않고 JSON-RPC 에러 응답을 반환합니다.
+
+## MCP Writing Flow
+
+이 브랜치에서는 MCP 날씨 도구를 글쓰기 화면에 연결했습니다.
+
+변경한 파일:
+- `src/components/posts/PostForm.tsx`: 글쓰기/수정 폼에서 `/api/mcp`를 호출하는 날씨 브리핑 영역 추가
+- `src/app/globals.css`: MCP 브리핑 입력과 결과 카드 스타일 추가
+
+동작 흐름:
+
+```text
+글쓰기 화면
+  -> 지역 입력
+  -> 브리핑 추가 버튼 클릭
+  -> POST /api/mcp
+  -> tools/call weather_current
+  -> 응답의 draft를 본문 textarea 끝에 추가
+```
+
+실패 처리:
+- 외부 API 호출에 실패하면 글쓰기 기본 기능은 그대로 유지하고 MCP 영역에 오류 메시지만 표시합니다.
+- MCP 응답 형식이 예상과 다르면 본문을 수정하지 않고 실패 메시지를 표시합니다.
+
+## MCP Demo Guide
+
+MCP 기능을 발표하거나 복습할 때는 다음 순서로 시연합니다.
+
+사전 준비:
+- Docker Desktop 실행
+- PostgreSQL 컨테이너 실행
+- `.env`에 `DATABASE_URL`, `SESSION_SECRET`, `OPEN_METEO_DEFAULT_LOCATION`, `OPEN_METEO_LANGUAGE` 설정
+- Open-Meteo는 기본 비상업적 API 흐름에서 API Key가 필요하지 않습니다.
+
+서버 실행:
+
+```powershell
+cd C:\Users\user\Desktop\정글\ai-board\next-ai-board
+npm run dev
+```
+
+API 단독 확인:
+
+```powershell
+$body = @{
+  jsonrpc = "2.0"
+  id = 1
+  method = "tools/call"
+  params = @{
+    name = "weather_current"
+    arguments = @{
+      location = "Seoul"
+    }
+  }
+} | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/mcp" `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+웹 화면 시연:
+
+```text
+1. 로그인한다.
+2. /posts/new로 이동한다.
+3. 날씨 브리핑 영역에서 지역을 입력한다. 예: Seoul
+4. 브리핑 추가 버튼을 누른다.
+5. 본문 textarea에 날씨 브리핑 초안이 추가되는지 확인한다.
+6. 제목, 태그를 입력하고 게시글 등록을 눌러 일반 글쓰기 흐름이 유지되는지 확인한다.
+```
+
+설명할 핵심 흐름:
+
+```text
+글쓰기 화면
+  -> POST /api/mcp
+    -> JSON-RPC tools/call
+      -> weather_current tool
+        -> Open-Meteo Geocoding API
+        -> Open-Meteo Weather Forecast API
+      <- summary, draft 반환
+  <- 본문 textarea에 초안 추가
+```
+
+예상 응답 형태:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Seoul, Seoul, 대한민국 현재 날씨는 맑음, 기온은 20°C입니다."
+      }
+    ],
+    "structuredContent": {
+      "displayLocation": "Seoul, Seoul, 대한민국",
+      "summary": "Seoul, Seoul, 대한민국 현재 날씨는 맑음, 기온은 20°C입니다.",
+      "draft": "오늘의 날씨 브리핑: Seoul, Seoul, 대한민국..."
+    }
+  }
+}
+```
+
+실패 상황:
+- 지역명이 너무 짧거나 비어 있으면 `-32602` 에러를 반환합니다.
+- 지역을 찾지 못하거나 Open-Meteo 호출이 실패하면 `-32603` 에러를 반환합니다.
+- MCP 호출이 실패해도 게시글 저장 기능은 막지 않습니다.
+
+현재 한계:
+- 실제 독립 실행형 MCP 서버가 아니라 Next.js API Route 안에서 JSON-RPC 흐름을 구현했습니다.
+- `weather_code`는 코드 내부 매핑으로 한국어 설명을 만듭니다.
+- 본문에 추가된 초안은 자동 저장되지 않고 사용자가 직접 확인한 뒤 저장합니다.
+
+다음 개선점:
+- MCP 서버를 독립 실행형 프로세스로 분리
+- 더 많은 외부 도구 추가
+- AI Agent가 상황에 따라 `weather_current` tool을 선택하도록 연결
+- MCP 응답을 게시글 템플릿으로 더 자연스럽게 다듬기
