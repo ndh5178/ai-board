@@ -27,6 +27,12 @@ type PostWithRelations = Prisma.PostGetPayload<{
   include: typeof postInclude;
 }>;
 
+export type AdjacentPost = {
+  id: string;
+  title: string;
+  createdAt: string;
+};
+
 function formatDate(date: Date) {
   return date.toISOString().slice(0, 10);
 }
@@ -193,9 +199,7 @@ export async function listPosts({
     prisma.post.findMany({
       where,
       include: postInclude,
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: (currentPage - 1) * POSTS_PER_PAGE,
       take: POSTS_PER_PAGE,
     }),
@@ -217,6 +221,91 @@ export async function getPostById(id: string) {
   });
 
   return post ? mapPostDetail(post) : null;
+}
+
+export async function getAdjacentPostsById(id: string) {
+  const currentPost = await prisma.post.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      createdAt: true,
+    },
+  });
+
+  if (!currentPost) {
+    return {
+      nextPost: null,
+      previousPost: null,
+    };
+  }
+
+  const [previousPost, nextPost] = await Promise.all([
+    prisma.post.findFirst({
+      where: {
+        status: "PUBLISHED",
+        OR: [
+          {
+            createdAt: {
+              lt: currentPost.createdAt,
+            },
+          },
+          {
+            createdAt: currentPost.createdAt,
+            id: {
+              lt: currentPost.id,
+            },
+          },
+        ],
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+      },
+    }),
+    prisma.post.findFirst({
+      where: {
+        status: "PUBLISHED",
+        OR: [
+          {
+            createdAt: {
+              gt: currentPost.createdAt,
+            },
+          },
+          {
+            createdAt: currentPost.createdAt,
+            id: {
+              gt: currentPost.id,
+            },
+          },
+        ],
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  return {
+    previousPost: previousPost
+      ? {
+          id: previousPost.id,
+          title: previousPost.title,
+          createdAt: formatDate(previousPost.createdAt),
+        }
+      : null,
+    nextPost: nextPost
+      ? {
+          id: nextPost.id,
+          title: nextPost.title,
+          createdAt: formatDate(nextPost.createdAt),
+        }
+      : null,
+  };
 }
 
 export async function connectTags(tagNames: string[]) {

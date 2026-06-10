@@ -4,7 +4,7 @@ import { getSession } from "@/lib/session";
 
 const navItems = [
   { href: "/", label: "홈" },
-  { href: "/posts", label: "전체글" },
+  { href: "/posts", label: "게시글 목록" },
   { href: "/posts/new", label: "글쓰기" },
   { href: "/tags", label: "태그" },
   { href: "/notices", label: "공지사항" },

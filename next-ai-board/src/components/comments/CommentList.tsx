@@ -23,13 +23,14 @@ export function CommentList({ comments }: CommentListProps) {
             <strong>{comment.authorName}</strong>
             <span>{comment.createdAt}</span>
           </div>
-          <p>{comment.content}</p>
           {comment.canManage ? (
             <CommentActions
               commentId={comment.id}
               initialContent={comment.content}
             />
-          ) : null}
+          ) : (
+            <p>{comment.content}</p>
+          )}
         </article>
       ))}
     </section>

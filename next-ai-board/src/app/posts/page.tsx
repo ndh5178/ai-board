@@ -49,7 +49,7 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
   return (
     <PageShell
       eyebrow="Posts"
-      title="전체글"
+      title="게시글 목록"
       description={`DB에 저장된 게시글 ${totalCount}개를 검색하고 태그로 탐색합니다.`}
       actions={<ButtonLink href="/posts/new">글쓰기</ButtonLink>}
     >
