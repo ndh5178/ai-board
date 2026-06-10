@@ -438,3 +438,28 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 현재 단계:
 - 실제 날씨 API tool은 아직 연결하지 않았습니다.
 - 다음 작업에서 `tools` 목록에 `weather_current`를 추가하고, `tools/call`에서 OpenWeather 호출로 연결합니다.
+
+## MCP Weather Tool
+
+이 브랜치에서는 MCP 서버에 실제 외부 날씨 데이터를 가져오는 `weather_current` tool을 연결했습니다.
+
+추가한 파일:
+- `src/mcp/tools/weather.ts`: OpenWeather Geocoding API와 Current Weather API 호출 함수
+
+변경한 파일:
+- `src/mcp/server.ts`: `tools/list`에 `weather_current` 등록, `tools/call`에서 날씨 tool 실행
+
+동작 흐름:
+
+```text
+tools/call weather_current
+  -> location 입력값 확인
+  -> OpenWeather Geocoding API로 좌표 조회
+  -> OpenWeather Current Weather API로 현재 날씨 조회
+  -> 게시글 초안에 쓸 수 있는 summary, draft, structuredContent 반환
+```
+
+에러 처리:
+- 지역 입력값이 비어 있거나 너무 길면 `-32602` 에러를 반환합니다.
+- `OPENWEATHER_API_KEY`가 없으면 `-32603` 에러를 반환합니다.
+- 지역을 찾지 못하거나 OpenWeather 호출에 실패해도 서버가 죽지 않고 JSON-RPC 에러 응답을 반환합니다.

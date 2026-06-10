@@ -6,6 +6,11 @@ import type {
   McpHttpResult,
   McpToolDefinition,
 } from "./types";
+import {
+  getCurrentWeatherBriefing,
+  McpToolError,
+  weatherCurrentTool,
+} from "./tools/weather";
 
 const MCP_PROTOCOL_VERSION = "2025-06-18";
 
@@ -14,7 +19,7 @@ const serverInfo = {
   version: "0.1.0",
 };
 
-const tools: McpToolDefinition[] = [];
+const tools: McpToolDefinition[] = [weatherCurrentTool];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -102,11 +107,55 @@ function handleToolsList(request: JsonRpcRequest): JsonRpcResponse {
   });
 }
 
-function handleToolsCall(request: JsonRpcRequest): JsonRpcResponse {
+function getToolErrorMessage(errorCode: McpToolError["code"]) {
+  switch (errorCode) {
+    case "INVALID_INPUT":
+      return -32602;
+    case "MISSING_API_KEY":
+    case "NOT_FOUND":
+    case "EXTERNAL_API_ERROR":
+      return -32603;
+  }
+}
+
+async function handleToolsCall(
+  request: JsonRpcRequest,
+): Promise<JsonRpcResponse> {
   const params = request.params;
 
   if (!isRecord(params) || typeof params.name !== "string") {
     return error(request.id ?? null, -32602, "tools/call requires a tool name.");
+  }
+
+  if (params.name === weatherCurrentTool.name) {
+    try {
+      const result = await getCurrentWeatherBriefing(params.arguments);
+
+      return success(request.id ?? null, {
+        content: [
+          {
+            type: "text",
+            text: result.summary,
+          },
+        ],
+        structuredContent: result,
+      });
+    } catch (toolError) {
+      if (toolError instanceof McpToolError) {
+        return error(
+          request.id ?? null,
+          getToolErrorMessage(toolError.code),
+          toolError.message,
+          toolError.data,
+        );
+      }
+
+      return error(
+        request.id ?? null,
+        -32603,
+        "날씨 도구 실행 중 알 수 없는 오류가 발생했습니다.",
+      );
+    }
   }
 
   return error(
@@ -163,7 +212,7 @@ export async function handleMcpRequest(input: unknown): Promise<McpHttpResult> {
     case "tools/call":
       return {
         status: 200,
-        body: handleToolsCall(request),
+        body: await handleToolsCall(request),
       };
     default:
       return {
