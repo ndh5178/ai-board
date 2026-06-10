@@ -584,3 +584,42 @@ Invoke-RestMethod `
 - 더 많은 외부 도구 추가
 - AI Agent가 상황에 따라 `weather_current` tool을 선택하도록 연결
 - MCP 응답을 게시글 템플릿으로 더 자연스럽게 다듬기
+
+## Agent Design
+
+이 브랜치에서는 AI Agent 구현 전에 글쓰기 보조 Agent의 역할과 데이터 구조를 먼저 정의했습니다.
+
+목표:
+- 사용자가 입력한 제목, 본문, 태그를 바탕으로 글쓰기 보조 결과를 제안합니다.
+- RAG 유사 게시글 검색과 MCP 날씨 도구를 Agent가 사용할 수 있는 tool 후보로 둡니다.
+- Agent는 게시글을 자동 저장하지 않고 초안, 태그, 검토 의견만 제안합니다.
+
+추가한 파일:
+- `src/agent/types.ts`: Agent 입력, 상태, 도구 호출, 결과 타입 정의
+
+설계한 Agent 입력:
+- `title`: 현재 글 제목
+- `content`: 현재 글 본문 또는 짧은 아이디어
+- `tags`: 사용자가 이미 입력한 태그
+- `intent`: `write_post`, `improve_post`, `suggest_tags`, `review_post`
+- `weatherLocation`: MCP 날씨 도구가 필요할 때 사용할 지역
+
+설계한 Agent 출력:
+- `summary`: Agent가 한 일을 설명하는 짧은 요약
+- `suggestion.draft`: 본문에 반영할 수 있는 초안
+- `suggestion.tags`: 태그 후보
+- `suggestion.reviewNotes`: 저장 전에 확인할 점
+- `state`: Agent가 어떤 도구를 어떤 이유로 호출했는지 남기는 실행 상태
+
+사용할 tool 후보:
+- `rag_similar_posts`: 비슷한 기존 게시글 검색
+- `mcp_weather_current`: MCP 날씨 브리핑 호출
+- `draft_writer`: 초안 작성
+- `tag_suggester`: 태그 추천
+
+무한 루프 방지:
+- `AGENT_MAX_STEPS`를 4로 제한합니다.
+- 같은 도구를 같은 입력으로 반복 호출하지 않습니다.
+- 외부 도구 실패 시 전체 글쓰기 기능을 막지 않고 부분 결과를 반환하는 방향으로 설계합니다.
+
+자세한 학습 노트는 `md/AGENT.md`에 정리했습니다.
