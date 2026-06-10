@@ -978,6 +978,71 @@ button:disabled {
   line-height: 1.6;
 }
 
+.agent-preview__result {
+  display: grid;
+  gap: 14px;
+}
+
+.agent-preview__result > div {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+}
+
+.agent-preview__result strong {
+  color: #111111;
+  font-size: 15px;
+}
+
+.agent-preview__result p,
+.agent-preview__result li {
+  margin: 0;
+  color: #4e5968;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.agent-preview__result ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.agent-preview__result pre {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  padding: 14px;
+  white-space: pre-wrap;
+  color: #333d4b;
+  background: #fafafa;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.agent-preview__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-preview__tags span {
+  padding: 6px 10px;
+  color: #ef3f7b;
+  background: #fff1f7;
+  border: 1px solid #ffd3e4;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
 input,
 textarea {
   width: 100%;

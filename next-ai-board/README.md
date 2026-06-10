@@ -670,3 +670,34 @@ Agent API
 현재 단계:
 - 외부 LLM Function Calling을 바로 붙이지 않고, 규칙 기반 Agent 루프로 먼저 구현했습니다.
 - 다음 단계에서 글쓰기 화면에 Agent 실행 버튼과 결과 표시 영역을 연결합니다.
+
+## Agent Writing UI
+
+이 브랜치에서는 글쓰기 화면에서 Agent API를 실행하고 결과를 작성 흐름에 반영할 수 있게 연결했습니다.
+
+변경한 파일:
+- `src/components/posts/PostForm.tsx`: Agent 실행 버튼, 결과 영역, 본문/태그 반영 버튼 추가
+- `src/app/globals.css`: Agent 결과 카드, 초안 preview, 태그 chip 스타일 추가
+
+화면 동작:
+
+```text
+글쓰기 화면
+  -> 제목/본문/태그/지역 입력
+  -> Agent 실행 버튼 클릭
+  -> POST /api/agent/writing-assistant
+  -> AgentResult 표시
+  -> 사용자가 본문에 추가 또는 태그에 반영 버튼 클릭
+```
+
+표시하는 결과:
+- 실행 요약
+- 초안 제안
+- 태그 제안
+- 검토 의견
+- Agent가 실행한 도구 목록과 상태
+
+주의:
+- Agent 결과는 자동 저장되지 않습니다.
+- 사용자가 제안 내용을 확인한 뒤 본문 또는 태그 입력칸에 직접 반영합니다.
+- Agent 실행에 실패해도 게시글 저장 기능은 그대로 유지됩니다.

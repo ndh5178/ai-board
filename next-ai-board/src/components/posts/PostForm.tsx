@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import type { SimilarPost } from "@/types/rag";
+import type { AgentResult } from "@/agent/types";
 
 type PostFormProps = {
   mode: "create" | "edit";
@@ -37,13 +38,17 @@ export function PostForm({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
+  const tagsRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState("");
   const [mcpMessage, setMcpMessage] = useState("");
+  const [agentMessage, setAgentMessage] = useState("");
   const [weatherLocation, setWeatherLocation] = useState("Seoul");
   const [weatherBriefing, setWeatherBriefing] =
     useState<WeatherBriefing | null>(null);
+  const [agentResult, setAgentResult] = useState<AgentResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+  const [isRunningAgent, setIsRunningAgent] = useState(false);
   const [similarPosts, setSimilarPosts] = useState<SimilarPost[]>([]);
   const [isFindingSimilarPosts, setIsFindingSimilarPosts] = useState(false);
 
@@ -101,6 +106,63 @@ export function PostForm({
     contentRef.current.value = currentContent
       ? `${currentContent}\n\n${draft}`
       : draft;
+  }
+
+  function applyAgentTags(tags: string[]) {
+    if (!tagsRef.current) {
+      return;
+    }
+
+    const currentTags = tagsRef.current.value
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    const mergedTags = Array.from(new Set([...currentTags, ...tags]));
+    tagsRef.current.value = mergedTags.join(", ");
+    setAgentMessage("Agent 추천 태그를 태그 입력칸에 반영했습니다.");
+  }
+
+  async function handleRunAgent() {
+    if (!formRef.current) {
+      return;
+    }
+
+    setMessage("");
+    setAgentMessage("");
+    setIsRunningAgent(true);
+
+    const payload = getPayload(formRef.current);
+
+    try {
+      const response = await fetch("/api/agent/writing-assistant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: payload.title,
+          content: payload.content,
+          tags: payload.tags,
+          intent: mode === "create" ? "write_post" : "improve_post",
+          weatherLocation,
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as
+        | (AgentResult & { message?: string })
+        | null;
+
+      if (!response.ok) {
+        setAgentMessage(result?.message ?? "Agent 실행에 실패했습니다.");
+        return;
+      }
+
+      setAgentResult(result);
+      setAgentMessage("Agent 제안을 만들었습니다.");
+    } catch {
+      setAgentMessage("서버와 연결하지 못했습니다. 개발 서버 상태를 확인하세요.");
+    } finally {
+      setIsRunningAgent(false);
+    }
   }
 
   async function handleLoadWeatherBriefing() {
@@ -218,9 +280,95 @@ export function PostForm({
       </label>
       <label>
         태그
-        <input name="tags" placeholder="예: RAG, MCP, Agent" defaultValue={tags} />
+        <input
+          ref={tagsRef}
+          name="tags"
+          placeholder="예: RAG, MCP, Agent"
+          defaultValue={tags}
+        />
       </label>
       {message ? <p className="form-message">{message}</p> : null}
+      <section className="rag-preview agent-preview" aria-label="Agent 글쓰기 보조">
+        <div className="rag-preview__header">
+          <div>
+            <strong>Agent 글쓰기 도우미</strong>
+            <p>RAG와 MCP 도구 결과를 모아 초안, 태그, 검토 의견을 제안합니다.</p>
+          </div>
+          <button
+            className="button button--secondary"
+            disabled={isRunningAgent}
+            onClick={handleRunAgent}
+            type="button"
+          >
+            {isRunningAgent ? "실행 중" : "Agent 실행"}
+          </button>
+        </div>
+        {agentMessage ? <p className="form-message">{agentMessage}</p> : null}
+        {agentResult ? (
+          <div className="agent-preview__result">
+            <div>
+              <strong>실행 요약</strong>
+              <p>{agentResult.summary}</p>
+            </div>
+            {agentResult.suggestion.draft ? (
+              <div>
+                <strong>초안 제안</strong>
+                <pre>{agentResult.suggestion.draft}</pre>
+                <button
+                  className="button button--secondary"
+                  onClick={() =>
+                    appendDraftToContent(agentResult.suggestion.draft ?? "")
+                  }
+                  type="button"
+                >
+                  본문에 추가
+                </button>
+              </div>
+            ) : null}
+            {agentResult.suggestion.tags.length > 0 ? (
+              <div>
+                <strong>태그 제안</strong>
+                <div className="agent-preview__tags">
+                  {agentResult.suggestion.tags.map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
+                </div>
+                <button
+                  className="button button--secondary"
+                  onClick={() => applyAgentTags(agentResult.suggestion.tags)}
+                  type="button"
+                >
+                  태그에 반영
+                </button>
+              </div>
+            ) : null}
+            {agentResult.suggestion.reviewNotes.length > 0 ? (
+              <div>
+                <strong>검토 의견</strong>
+                <ul>
+                  {agentResult.suggestion.reviewNotes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <div>
+              <strong>실행 도구</strong>
+              <ul>
+                {agentResult.state.toolCalls.map((toolCall, index) => (
+                  <li key={`${toolCall.name}-${index}`}>
+                    {toolCall.name} · {toolCall.status}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <p className="rag-preview__empty">
+            제목이나 본문을 입력하고 실행하면 Agent 제안이 여기에 표시됩니다.
+          </p>
+        )}
+      </section>
       <section className="rag-preview mcp-preview" aria-label="MCP 날씨 브리핑">
         <div className="rag-preview__header">
           <div>
