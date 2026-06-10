@@ -701,3 +701,112 @@ Agent API
 - Agent 결과는 자동 저장되지 않습니다.
 - 사용자가 제안 내용을 확인한 뒤 본문 또는 태그 입력칸에 직접 반영합니다.
 - Agent 실행에 실패해도 게시글 저장 기능은 그대로 유지됩니다.
+
+## Agent Demo Guide
+
+Agent 기능을 발표하거나 복습할 때는 다음 순서로 시연합니다.
+
+사전 준비:
+- Docker Desktop 실행
+- PostgreSQL 컨테이너 실행
+- `.env`에 `DATABASE_URL`, `SESSION_SECRET`, `OPEN_METEO_DEFAULT_LOCATION`, `OPEN_METEO_LANGUAGE` 설정
+- Open-Meteo는 기본 비상업적 API 흐름에서 API Key가 필요하지 않습니다.
+
+서버 실행:
+
+```powershell
+cd C:\Users\user\Desktop\정글\ai-board\next-ai-board
+npm run dev
+```
+
+API 단독 확인:
+
+```powershell
+$body = @{
+  title = "비 오는 날 개발 기록"
+  content = "오늘 작업한 MCP 기능과 Agent 기능을 정리하고 싶다."
+  tags = "MCP"
+  intent = "write_post"
+  weatherLocation = "Seoul"
+} | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/agent/writing-assistant" `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+웹 화면 시연:
+
+```text
+1. 로그인한다.
+2. /posts/new로 이동한다.
+3. 제목과 본문 아이디어를 입력한다.
+4. 지역 입력값을 확인한다. 예: Seoul
+5. Agent 실행 버튼을 누른다.
+6. 실행 요약, 초안 제안, 태그 제안, 검토 의견, 실행 도구 목록을 확인한다.
+7. 본문에 추가 버튼으로 초안을 textarea에 반영한다.
+8. 태그에 반영 버튼으로 추천 태그를 입력칸에 반영한다.
+9. 내용을 확인하고 게시글 등록을 눌러 일반 저장 흐름이 유지되는지 확인한다.
+```
+
+설명할 핵심 흐름:
+
+```text
+글쓰기 화면
+  -> POST /api/agent/writing-assistant
+    -> AgentState 생성
+    -> rag_similar_posts 실행
+    -> mcp_weather_current 실행
+    -> draft_writer 실행
+    -> tag_suggester 실행
+  <- AgentResult 반환
+  -> 사용자가 초안과 태그를 직접 반영
+```
+
+예상 응답 형태:
+
+```json
+{
+  "summary": "Agent가 4개 도구를 활용해 글쓰기 제안을 만들었습니다.",
+  "suggestion": {
+    "draft": "# 비 오는 날 개발 기록...",
+    "tags": ["MCP", "날씨", "RAG"],
+    "reviewNotes": ["비슷한 기존 글이 있으니 중복 질문인지 확인해 보세요."]
+  },
+  "state": {
+    "maxSteps": 4,
+    "currentStep": 4,
+    "toolCalls": [
+      {
+        "name": "rag_similar_posts",
+        "status": "success"
+      },
+      {
+        "name": "mcp_weather_current",
+        "status": "success"
+      }
+    ]
+  }
+}
+```
+
+실패 상황:
+- 제목과 본문이 모두 비어 있으면 `400` 응답을 반환합니다.
+- RAG 검색이 실패해도 Agent는 초안 생성을 계속합니다.
+- MCP 날씨 도구가 실패해도 Agent는 날씨 없이 부분 결과를 반환합니다.
+- Agent 실행이 실패해도 게시글 저장 기능은 막지 않습니다.
+
+현재 한계:
+- 외부 LLM Function Calling을 아직 사용하지 않고 규칙 기반으로 도구를 실행합니다.
+- Agent 실행 결과를 DB에 저장하지 않습니다.
+- 사용자별 작성 스타일이나 선호 태그 memory는 아직 없습니다.
+- RAG와 MCP 도구 호출 순서가 고정되어 있습니다.
+
+다음 개선점:
+- OpenAI Function Calling 또는 LangGraph 스타일의 도구 선택 루프 적용
+- Agent 실행 기록 저장
+- 사용자 관심 태그 기반 개인화
+- 게시글 저장 전 자동 품질 점검 추가
+- 댓글/상세 페이지에서도 Agent 검토 기능 확장
