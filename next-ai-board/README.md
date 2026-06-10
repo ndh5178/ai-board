@@ -584,3 +584,229 @@ Invoke-RestMethod `
 - 더 많은 외부 도구 추가
 - AI Agent가 상황에 따라 `weather_current` tool을 선택하도록 연결
 - MCP 응답을 게시글 템플릿으로 더 자연스럽게 다듬기
+
+## Agent Design
+
+이 브랜치에서는 AI Agent 구현 전에 글쓰기 보조 Agent의 역할과 데이터 구조를 먼저 정의했습니다.
+
+목표:
+- 사용자가 입력한 제목, 본문, 태그를 바탕으로 글쓰기 보조 결과를 제안합니다.
+- RAG 유사 게시글 검색과 MCP 날씨 도구를 Agent가 사용할 수 있는 tool 후보로 둡니다.
+- Agent는 게시글을 자동 저장하지 않고 초안, 태그, 검토 의견만 제안합니다.
+
+추가한 파일:
+- `src/agent/types.ts`: Agent 입력, 상태, 도구 호출, 결과 타입 정의
+
+설계한 Agent 입력:
+- `title`: 현재 글 제목
+- `content`: 현재 글 본문 또는 짧은 아이디어
+- `tags`: 사용자가 이미 입력한 태그
+- `intent`: `write_post`, `improve_post`, `suggest_tags`, `review_post`
+- `weatherLocation`: MCP 날씨 도구가 필요할 때 사용할 지역
+
+설계한 Agent 출력:
+- `summary`: Agent가 한 일을 설명하는 짧은 요약
+- `suggestion.draft`: 본문에 반영할 수 있는 초안
+- `suggestion.tags`: 태그 후보
+- `suggestion.reviewNotes`: 저장 전에 확인할 점
+- `state`: Agent가 어떤 도구를 어떤 이유로 호출했는지 남기는 실행 상태
+
+사용할 tool 후보:
+- `rag_similar_posts`: 비슷한 기존 게시글 검색
+- `mcp_weather_current`: MCP 날씨 브리핑 호출
+- `draft_writer`: 초안 작성
+- `tag_suggester`: 태그 추천
+
+무한 루프 방지:
+- `AGENT_MAX_STEPS`를 4로 제한합니다.
+- 같은 도구를 같은 입력으로 반복 호출하지 않습니다.
+- 외부 도구 실패 시 전체 글쓰기 기능을 막지 않고 부분 결과를 반환하는 방향으로 설계합니다.
+
+자세한 학습 노트는 `md/AGENT.md`에 정리했습니다.
+
+## Agent API
+
+이 브랜치에서는 글쓰기 보조 Agent를 실행하는 서버 API를 추가했습니다.
+
+추가한 파일:
+- `src/agent/writing-assistant.ts`: Agent 실행 흐름, tool 호출 기록, 초안/태그/검토 의견 생성
+- `src/app/api/agent/writing-assistant/route.ts`: 글쓰기 보조 Agent API Route
+
+API 경로:
+
+```text
+POST /api/agent/writing-assistant
+```
+
+요청 예시:
+
+```json
+{
+  "title": "비 오는 날 개발 기록",
+  "content": "오늘 작업한 MCP 기능을 정리하고 싶다.",
+  "tags": "MCP",
+  "intent": "write_post",
+  "weatherLocation": "Seoul"
+}
+```
+
+실행 흐름:
+
+```text
+Agent API
+  -> AgentInput 검증
+  -> RAG 유사 게시글 검색
+  -> weatherLocation이 있으면 MCP weather_current 호출
+  -> draft_writer로 초안 생성
+  -> tag_suggester로 태그 후보 생성
+  -> AgentResult 반환
+```
+
+무한 루프 방지:
+- `AGENT_MAX_STEPS` 값인 4단계까지만 실행합니다.
+- 같은 도구를 같은 실행 안에서 성공 상태로 반복 호출하지 않습니다.
+- RAG나 MCP가 실패해도 서버가 죽지 않고 부분 결과를 반환합니다.
+
+현재 단계:
+- 외부 LLM Function Calling을 바로 붙이지 않고, 규칙 기반 Agent 루프로 먼저 구현했습니다.
+- 다음 단계에서 글쓰기 화면에 Agent 실행 버튼과 결과 표시 영역을 연결합니다.
+
+## Agent Writing UI
+
+이 브랜치에서는 글쓰기 화면에서 Agent API를 실행하고 결과를 작성 흐름에 반영할 수 있게 연결했습니다.
+
+변경한 파일:
+- `src/components/posts/PostForm.tsx`: Agent 실행 버튼, 결과 영역, 본문/태그 반영 버튼 추가
+- `src/app/globals.css`: Agent 결과 카드, 초안 preview, 태그 chip 스타일 추가
+
+화면 동작:
+
+```text
+글쓰기 화면
+  -> 제목/본문/태그/지역 입력
+  -> Agent 실행 버튼 클릭
+  -> POST /api/agent/writing-assistant
+  -> AgentResult 표시
+  -> 사용자가 본문에 추가 또는 태그에 반영 버튼 클릭
+```
+
+표시하는 결과:
+- 실행 요약
+- 초안 제안
+- 태그 제안
+- 검토 의견
+- Agent가 실행한 도구 목록과 상태
+
+주의:
+- Agent 결과는 자동 저장되지 않습니다.
+- 사용자가 제안 내용을 확인한 뒤 본문 또는 태그 입력칸에 직접 반영합니다.
+- Agent 실행에 실패해도 게시글 저장 기능은 그대로 유지됩니다.
+
+## Agent Demo Guide
+
+Agent 기능을 발표하거나 복습할 때는 다음 순서로 시연합니다.
+
+사전 준비:
+- Docker Desktop 실행
+- PostgreSQL 컨테이너 실행
+- `.env`에 `DATABASE_URL`, `SESSION_SECRET`, `OPEN_METEO_DEFAULT_LOCATION`, `OPEN_METEO_LANGUAGE` 설정
+- Open-Meteo는 기본 비상업적 API 흐름에서 API Key가 필요하지 않습니다.
+
+서버 실행:
+
+```powershell
+cd C:\Users\user\Desktop\정글\ai-board\next-ai-board
+npm run dev
+```
+
+API 단독 확인:
+
+```powershell
+$body = @{
+  title = "비 오는 날 개발 기록"
+  content = "오늘 작업한 MCP 기능과 Agent 기능을 정리하고 싶다."
+  tags = "MCP"
+  intent = "write_post"
+  weatherLocation = "Seoul"
+} | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/agent/writing-assistant" `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+웹 화면 시연:
+
+```text
+1. 로그인한다.
+2. /posts/new로 이동한다.
+3. 제목과 본문 아이디어를 입력한다.
+4. 지역 입력값을 확인한다. 예: Seoul
+5. Agent 실행 버튼을 누른다.
+6. 실행 요약, 초안 제안, 태그 제안, 검토 의견, 실행 도구 목록을 확인한다.
+7. 본문에 추가 버튼으로 초안을 textarea에 반영한다.
+8. 태그에 반영 버튼으로 추천 태그를 입력칸에 반영한다.
+9. 내용을 확인하고 게시글 등록을 눌러 일반 저장 흐름이 유지되는지 확인한다.
+```
+
+설명할 핵심 흐름:
+
+```text
+글쓰기 화면
+  -> POST /api/agent/writing-assistant
+    -> AgentState 생성
+    -> rag_similar_posts 실행
+    -> mcp_weather_current 실행
+    -> draft_writer 실행
+    -> tag_suggester 실행
+  <- AgentResult 반환
+  -> 사용자가 초안과 태그를 직접 반영
+```
+
+예상 응답 형태:
+
+```json
+{
+  "summary": "Agent가 4개 도구를 활용해 글쓰기 제안을 만들었습니다.",
+  "suggestion": {
+    "draft": "# 비 오는 날 개발 기록...",
+    "tags": ["MCP", "날씨", "RAG"],
+    "reviewNotes": ["비슷한 기존 글이 있으니 중복 질문인지 확인해 보세요."]
+  },
+  "state": {
+    "maxSteps": 4,
+    "currentStep": 4,
+    "toolCalls": [
+      {
+        "name": "rag_similar_posts",
+        "status": "success"
+      },
+      {
+        "name": "mcp_weather_current",
+        "status": "success"
+      }
+    ]
+  }
+}
+```
+
+실패 상황:
+- 제목과 본문이 모두 비어 있으면 `400` 응답을 반환합니다.
+- RAG 검색이 실패해도 Agent는 초안 생성을 계속합니다.
+- MCP 날씨 도구가 실패해도 Agent는 날씨 없이 부분 결과를 반환합니다.
+- Agent 실행이 실패해도 게시글 저장 기능은 막지 않습니다.
+
+현재 한계:
+- 외부 LLM Function Calling을 아직 사용하지 않고 규칙 기반으로 도구를 실행합니다.
+- Agent 실행 결과를 DB에 저장하지 않습니다.
+- 사용자별 작성 스타일이나 선호 태그 memory는 아직 없습니다.
+- RAG와 MCP 도구 호출 순서가 고정되어 있습니다.
+
+다음 개선점:
+- OpenAI Function Calling 또는 LangGraph 스타일의 도구 선택 루프 적용
+- Agent 실행 기록 저장
+- 사용자 관심 태그 기반 개인화
+- 게시글 저장 전 자동 품질 점검 추가
+- 댓글/상세 페이지에서도 Agent 검토 기능 확장
