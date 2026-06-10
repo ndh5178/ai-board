@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { expiredSessionResponse, getExistingSessionUser } from "@/lib/auth-user";
 import { buildExcerpt, connectTags, listPosts, parseTags } from "@/lib/posts";
-import { syncPostEmbedding } from "@/lib/rag";
-import { getSession } from "@/lib/session";
+import { trySyncPostEmbedding } from "@/lib/rag";
 
 type PostBody = {
   title?: string;
@@ -25,13 +25,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
+  const currentUser = await getExistingSessionUser();
 
-  if (!session) {
-    return NextResponse.json(
-      { message: "로그인이 필요합니다." },
-      { status: 401 },
-    );
+  if (!currentUser) {
+    return expiredSessionResponse();
   }
 
   const body = (await request.json().catch(() => null)) as PostBody | null;
@@ -51,7 +48,7 @@ export async function POST(request: Request) {
       title,
       content,
       excerpt: buildExcerpt(content),
-      authorId: session.userId,
+      authorId: currentUser.user.id,
       tags: {
         create: await connectTags(tagNames),
       },
@@ -61,11 +58,17 @@ export async function POST(request: Request) {
     },
   });
 
-  await syncPostEmbedding({
+  const embeddingSynced = await trySyncPostEmbedding({
     postId: post.id,
     title,
     content,
   });
 
-  return NextResponse.json({ id: post.id }, { status: 201 });
+  return NextResponse.json(
+    {
+      id: post.id,
+      embeddingSynced,
+    },
+    { status: 201 },
+  );
 }

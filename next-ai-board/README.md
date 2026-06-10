@@ -49,26 +49,53 @@ npm run dev
 http://localhost:3000
 ```
 
-## Local Dev Scripts
+## Local Dev Commands
 
-Windows PowerShell에서 DB와 개발 서버를 한 번에 켜고 끄기 위한 스크립트입니다.
+Windows PowerShell에서 DB와 개발 서버를 직접 켜고 끄는 명령어입니다.
 
-시작:
+자세한 설명은 개인 학습 문서인 `md/DEV_COMMANDS.md`에 정리했습니다.
+
+기존 DB 컨테이너가 있을 때 시작:
 
 ```powershell
 cd C:\Users\user\Desktop\정글\ai-board\next-ai-board
-powershell -ExecutionPolicy Bypass -File .\dev-start.ps1
+docker start next-ai-board-postgres
+cmd /c npx prisma migrate dev
+cmd /c npm run dev -- -H 0.0.0.0 -p 3000
+```
+
+DB 컨테이너를 처음 만들 때:
+
+```powershell
+cd C:\Users\user\Desktop\정글\ai-board\next-ai-board
+docker run --name next-ai-board-postgres `
+  -e POSTGRES_USER=postgres `
+  -e POSTGRES_PASSWORD=postgres `
+  -e POSTGRES_DB=next_ai_board `
+  -p 5432:5432 `
+  -d pgvector/pgvector:pg16
+cmd /c npx prisma migrate dev
+cmd /c npm run dev -- -H 0.0.0.0 -p 3000
 ```
 
 종료:
 
 ```powershell
-cd C:\Users\user\Desktop\정글\ai-board\next-ai-board
-powershell -ExecutionPolicy Bypass -File .\dev-stop.ps1
+netstat -ano | findstr :3000
+Stop-Process -Id PID번호 -Force
+docker stop next-ai-board-postgres
 ```
 
-`dev-start.ps1`은 PostgreSQL Docker 컨테이너를 시작하거나 생성한 뒤 Prisma 마이그레이션을 실행하고 Next.js 개발 서버를 실행합니다.
-`dev-stop.ps1`은 3000번 포트를 사용하는 Next.js 서버만 종료하고 PostgreSQL 컨테이너를 중지합니다.
+RAG 기능은 pgvector 확장이 필요하므로 DB 컨테이너는 `pgvector/pgvector:pg16` 이미지를 사용합니다.
+
+만약 예전 `postgres:16` 이미지로 만든 `next-ai-board-postgres` 컨테이너가 이미 있다면, 컨테이너 이미지를 바꿀 수 없기 때문에 기존 컨테이너를 직접 삭제하고 다시 만들어야 합니다.
+
+```powershell
+docker stop next-ai-board-postgres
+docker rm next-ai-board-postgres
+```
+
+주의: 기존 컨테이너를 삭제하면 그 컨테이너 안에 있던 개발용 DB 데이터도 함께 사라질 수 있습니다.
 
 ## Board Pages
 
@@ -291,3 +318,26 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 현재 단계:
 - 외부 LLM API 키 없이 구조를 먼저 이해할 수 있도록 개발용 로컬 임베딩을 사용합니다.
 - 다음 단계에서 OpenAI Embedding 같은 상용 임베딩 모델로 `src/lib/rag.ts`의 임베딩 생성 부분을 교체하면 됩니다.
+
+## Embedding Provider
+
+이 브랜치에서는 RAG 임베딩 생성 방식을 provider 구조로 분리했습니다.
+
+추가한 서버 로직:
+- `src/lib/embedding-provider.ts`: `local`, `openai`, `auto` 임베딩 provider 선택
+- `src/lib/rag.ts`: 직접 임베딩을 만들지 않고 `createEmbedding()`을 호출하도록 변경
+
+환경변수:
+- `EMBEDDING_PROVIDER=local`: 외부 API 없이 개발용 로컬 임베딩 사용
+- `EMBEDDING_PROVIDER=openai`: OpenAI Embeddings API 사용
+- `EMBEDDING_PROVIDER=auto`: `OPENAI_API_KEY`가 있으면 OpenAI, 없으면 local 사용
+- `OPENAI_API_KEY`: OpenAI API 키
+- `OPENAI_EMBEDDING_MODEL`: 기본값 `text-embedding-3-small`
+
+현재 DB의 벡터 컬럼은 `vector(384)`입니다. OpenAI 임베딩을 사용할 때도 `dimensions: 384`로 요청해서 DB 차원과 맞춥니다.
+
+주의:
+- 이미 local 임베딩으로 저장된 게시글과 OpenAI 임베딩으로 새로 저장된 게시글을 섞으면 추천 품질이 떨어질 수 있습니다.
+- provider를 바꾼 뒤에는 기존 게시글 임베딩을 다시 생성하는 작업이 필요합니다.
+- 임베딩 저장에 실패해도 게시글 등록/수정 자체는 성공하도록 처리합니다. RAG는 보조 기능이므로 게시판 기본 기능을 막지 않습니다.
+- DB 컨테이너를 새로 만들면 기존 브라우저 로그인 쿠키의 `userId`가 DB에 없을 수 있습니다. 작성 API는 DB에 실제 사용자가 없으면 세션 쿠키를 지우고 다시 로그인하라고 응답합니다.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { expiredSessionResponse, getExistingSessionUser } from "@/lib/auth-user";
 import { listCommentsByPostId } from "@/lib/comments";
 import { getSession } from "@/lib/session";
 
@@ -38,13 +39,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
 }
 
 export async function POST(request: Request, { params }: RouteContext) {
-  const session = await getSession();
+  const currentUser = await getExistingSessionUser();
 
-  if (!session) {
-    return NextResponse.json(
-      { message: "로그인이 필요합니다." },
-      { status: 401 },
-    );
+  if (!currentUser) {
+    return expiredSessionResponse();
   }
 
   const { id } = await params;
@@ -74,7 +72,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     data: {
       content,
       postId: id,
-      authorId: session.userId,
+      authorId: currentUser.user.id,
     },
     select: {
       id: true,

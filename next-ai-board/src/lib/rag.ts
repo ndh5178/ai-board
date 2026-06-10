@@ -1,8 +1,7 @@
-import { createHash } from "crypto";
+import { createEmbedding, EMBEDDING_DIMENSION } from "@/lib/embedding-provider";
 import { prisma } from "@/lib/db";
 import type { SimilarPost } from "@/types/rag";
 
-export const EMBEDDING_DIMENSION = 384;
 const MAX_SOURCE_TEXT_LENGTH = 4000;
 
 function normalizeText(value: string) {
@@ -16,38 +15,11 @@ export function buildEmbeddingSource(title: string, content: string) {
   );
 }
 
-function hashToken(token: string) {
-  const digest = createHash("sha256").update(token).digest();
-  return {
-    index: digest.readUInt32BE(0) % EMBEDDING_DIMENSION,
-    sign: digest[4] % 2 === 0 ? 1 : -1,
-  };
-}
-
-export function createLocalEmbedding(text: string) {
-  const vector = Array.from({ length: EMBEDDING_DIMENSION }, () => 0);
-  const tokens = normalizeText(text)
-    .toLowerCase()
-    .split(/[^0-9a-zA-Z가-힣]+/)
-    .filter(Boolean);
-
-  for (const token of tokens) {
-    const { index, sign } = hashToken(token);
-    vector[index] += sign;
-  }
-
-  const magnitude = Math.sqrt(
-    vector.reduce((sum, value) => sum + value * value, 0),
-  );
-
-  if (magnitude === 0) {
-    return vector;
-  }
-
-  return vector.map((value) => value / magnitude);
-}
-
 function toVectorLiteral(vector: number[]) {
+  if (vector.length !== EMBEDDING_DIMENSION) {
+    throw new Error(`Embedding must have ${EMBEDDING_DIMENSION} dimensions.`);
+  }
+
   return `[${vector.map((value) => value.toFixed(6)).join(",")}]`;
 }
 
@@ -61,7 +33,7 @@ export async function syncPostEmbedding({
   content: string;
 }) {
   const sourceText = buildEmbeddingSource(title, content);
-  const embedding = toVectorLiteral(createLocalEmbedding(sourceText));
+  const embedding = toVectorLiteral(await createEmbedding(sourceText));
 
   await prisma.$executeRawUnsafe(
     `
@@ -79,6 +51,26 @@ export async function syncPostEmbedding({
   );
 }
 
+export async function trySyncPostEmbedding({
+  postId,
+  title,
+  content,
+}: {
+  postId: string;
+  title: string;
+  content: string;
+}) {
+  try {
+    await syncPostEmbedding({ postId, title, content });
+
+    return true;
+  } catch (error) {
+    console.error("Failed to sync post embedding", error);
+
+    return false;
+  }
+}
+
 export async function findSimilarPosts({
   title,
   content,
@@ -91,7 +83,7 @@ export async function findSimilarPosts({
   limit?: number;
 }) {
   const sourceText = buildEmbeddingSource(title, content);
-  const embedding = toVectorLiteral(createLocalEmbedding(sourceText));
+  const embedding = toVectorLiteral(await createEmbedding(sourceText));
   const rows = await prisma.$queryRawUnsafe<
     Array<{
       id: string;
