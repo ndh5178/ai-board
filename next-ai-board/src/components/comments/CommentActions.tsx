@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 type CommentActionsProps = {
   commentId: string;
@@ -13,16 +13,25 @@ export function CommentActions({
   initialContent,
 }: CommentActionsProps) {
   const router = useRouter();
+  const [draftContent, setDraftContent] = useState(initialContent);
+  const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  async function updateComment() {
-    const content = window.prompt("댓글을 수정하세요.", initialContent);
+  function startEdit() {
+    setDraftContent(initialContent);
+    setMessage("");
+    setIsEditing(true);
+  }
 
-    if (content === null) {
-      return;
-    }
+  function cancelEdit() {
+    setDraftContent(initialContent);
+    setMessage("");
+    setIsEditing(false);
+  }
 
+  async function updateComment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setMessage("");
     setIsSaving(true);
 
@@ -32,7 +41,7 @@ export function CommentActions({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: draftContent }),
       });
       const result = (await response.json().catch(() => null)) as {
         message?: string;
@@ -43,6 +52,7 @@ export function CommentActions({
         return;
       }
 
+      setIsEditing(false);
       router.refresh();
     } catch {
       setMessage("서버와 연결하지 못했습니다. 개발 서버와 DB 상태를 확인하세요.");
@@ -82,15 +92,52 @@ export function CommentActions({
     }
   }
 
+  if (isEditing) {
+    return (
+      <form className="comment__edit-form" onSubmit={updateComment}>
+        <label>
+          댓글 수정
+          <textarea
+            name="content"
+            onChange={(event) => setDraftContent(event.target.value)}
+            rows={4}
+            value={draftContent}
+          />
+        </label>
+        {message ? <p className="form-message">{message}</p> : null}
+        <div className="comment__edit-actions">
+          <button
+            className="button button--secondary"
+            disabled={isSaving}
+            type="submit"
+          >
+            {isSaving ? "수정 중" : "수정 완료"}
+          </button>
+          <button
+            className="button button--secondary"
+            disabled={isSaving}
+            onClick={cancelEdit}
+            type="button"
+          >
+            취소
+          </button>
+        </div>
+      </form>
+    );
+  }
+
   return (
-    <div className="comment__actions">
-      <button disabled={isSaving} onClick={updateComment} type="button">
-        수정
-      </button>
-      <button disabled={isSaving} onClick={deleteComment} type="button">
-        삭제
-      </button>
-      {message ? <p className="form-message">{message}</p> : null}
-    </div>
+    <>
+      <p className="comment__body">{initialContent}</p>
+      <div className="comment__actions">
+        <button disabled={isSaving} onClick={startEdit} type="button">
+          수정
+        </button>
+        <button disabled={isSaving} onClick={deleteComment} type="button">
+          삭제
+        </button>
+        {message ? <p className="form-message">{message}</p> : null}
+      </div>
+    </>
   );
 }

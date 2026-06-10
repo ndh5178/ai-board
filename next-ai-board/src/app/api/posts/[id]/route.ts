@@ -128,9 +128,18 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     );
   }
 
-  await prisma.post.delete({
-    where: { id },
-  });
+  const [, deletedTags] = await prisma.$transaction([
+    prisma.post.delete({
+      where: { id },
+    }),
+    prisma.tag.deleteMany({
+      where: {
+        posts: {
+          none: {},
+        },
+      },
+    }),
+  ]);
 
-  return NextResponse.json({ id });
+  return NextResponse.json({ id, deletedTagCount: deletedTags.count });
 }
