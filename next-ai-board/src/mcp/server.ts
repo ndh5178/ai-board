@@ -111,7 +111,6 @@ function getToolErrorMessage(errorCode: McpToolError["code"]) {
   switch (errorCode) {
     case "INVALID_INPUT":
       return -32602;
-    case "MISSING_API_KEY":
     case "NOT_FOUND":
     case "EXTERNAL_API_ERROR":
       return -32603;

@@ -387,7 +387,7 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 
 현재 단계:
 - 실제 MCP 서버 구현 전에 `initialize`, `tools/list`, `tools/call` 흐름을 문서로 정리했습니다.
-- API Key는 `.env`에서 서버 코드만 읽고, 브라우저에는 노출하지 않는 방향으로 관리합니다.
+- 외부 API 설정은 `.env`에서 서버 코드만 읽고, 브라우저에는 노출하지 않는 방향으로 관리합니다.
 - 자세한 학습 노트는 `md/MCP.md`에 정리했습니다.
 
 ## MCP External API Strategy
@@ -395,30 +395,28 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 이 브랜치에서는 1차 MCP 기능에서 사용할 외부 API와 API Key 관리 전략을 정리했습니다.
 
 선택한 외부 API:
-- OpenWeather Current Weather API
+- Open-Meteo Weather Forecast API
 
 선택 이유:
 - 과제의 MCP 예시 중 "날씨 실시간 브리핑 글 작성"과 바로 연결됩니다.
 - 현재 날씨 조회 결과를 게시글 초안이나 글쓰기 보조 문장으로 바꾸기 쉽습니다.
-- 도시명 검색은 OpenWeather Geocoding API로 좌표를 찾고, Current Weather API는 좌표 기반으로 호출할 수 있습니다.
-- API Key가 필요한 서비스라서 과제 요구사항의 API Key / 권한 관리 전략을 설명하기 좋습니다.
+- 도시명 검색은 Open-Meteo Geocoding API로 좌표를 찾고, Weather Forecast API는 좌표 기반으로 호출할 수 있습니다.
+- 기본 비상업적 API 흐름에서는 API Key 없이 바로 호출할 수 있어 개발과 시연이 쉽습니다.
 
 사용할 환경변수:
-- `OPENWEATHER_API_KEY`: OpenWeather API Key
-- `OPENWEATHER_DEFAULT_LOCATION`: 기본 조회 지역 예시. 기본값 후보는 `Seoul,KR`
-- `OPENWEATHER_UNITS`: 온도 단위. `metric`을 사용하면 섭씨 기준으로 처리할 수 있습니다.
-- `OPENWEATHER_LANG`: 응답 언어. 한국어 응답을 위해 `kr`을 사용합니다.
+- `OPEN_METEO_DEFAULT_LOCATION`: 기본 조회 지역 예시. 기본값 후보는 `Seoul`
+- `OPEN_METEO_LANGUAGE`: 지오코딩 결과 언어. 한국어 결과를 위해 `ko`를 사용합니다.
 
 관리 전략:
-- 실제 API Key는 `.env`에만 저장합니다.
-- `.env.example`에는 필요한 변수 이름과 예시값만 둡니다.
+- Open-Meteo 기본 API는 API Key 없이 사용합니다.
+- `.env.example`에는 기본 지역과 언어 설정만 둡니다.
 - 브라우저 컴포넌트에서는 API Key를 직접 읽지 않습니다.
 - 외부 API 호출은 MCP 서버 또는 Next.js 서버 코드에서만 수행합니다.
-- API Key가 없을 때는 MCP tool이 명확한 설정 오류를 반환하고, 게시글 저장 같은 핵심 기능은 막지 않는 방향으로 처리합니다.
+- 외부 API 호출에 실패해도 게시글 저장 같은 핵심 기능은 막지 않는 방향으로 처리합니다.
 
 관련 공식 문서:
-- OpenWeather Current Weather API: https://openweathermap.org/api/current
-- OpenWeather Geocoding API: https://openweathermap.org/api/geocoding-api
+- Open-Meteo Weather Forecast API: https://open-meteo.com/en/docs
+- Open-Meteo Geocoding API: https://open-meteo.com/en/docs/geocoding-api
 
 ## MCP Server Basic Structure
 
@@ -437,14 +435,14 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 
 현재 단계:
 - 실제 날씨 API tool은 아직 연결하지 않았습니다.
-- 다음 작업에서 `tools` 목록에 `weather_current`를 추가하고, `tools/call`에서 OpenWeather 호출로 연결합니다.
+- 다음 작업에서 `tools` 목록에 `weather_current`를 추가하고, `tools/call`에서 Open-Meteo 호출로 연결합니다.
 
 ## MCP Weather Tool
 
 이 브랜치에서는 MCP 서버에 실제 외부 날씨 데이터를 가져오는 `weather_current` tool을 연결했습니다.
 
 추가한 파일:
-- `src/mcp/tools/weather.ts`: OpenWeather Geocoding API와 Current Weather API 호출 함수
+- `src/mcp/tools/weather.ts`: Open-Meteo Geocoding API와 Weather Forecast API 호출 함수
 
 변경한 파일:
 - `src/mcp/server.ts`: `tools/list`에 `weather_current` 등록, `tools/call`에서 날씨 tool 실행
@@ -454,12 +452,34 @@ Prisma 7에서는 DB 연결 URL을 `schema.prisma`가 아니라 `prisma.config.t
 ```text
 tools/call weather_current
   -> location 입력값 확인
-  -> OpenWeather Geocoding API로 좌표 조회
-  -> OpenWeather Current Weather API로 현재 날씨 조회
+  -> Open-Meteo Geocoding API로 좌표 조회
+  -> Open-Meteo Weather Forecast API로 현재 날씨 조회
   -> 게시글 초안에 쓸 수 있는 summary, draft, structuredContent 반환
 ```
 
 에러 처리:
 - 지역 입력값이 비어 있거나 너무 길면 `-32602` 에러를 반환합니다.
-- `OPENWEATHER_API_KEY`가 없으면 `-32603` 에러를 반환합니다.
-- 지역을 찾지 못하거나 OpenWeather 호출에 실패해도 서버가 죽지 않고 JSON-RPC 에러 응답을 반환합니다.
+- 지역을 찾지 못하거나 Open-Meteo 호출에 실패해도 서버가 죽지 않고 JSON-RPC 에러 응답을 반환합니다.
+
+## MCP Writing Flow
+
+이 브랜치에서는 MCP 날씨 도구를 글쓰기 화면에 연결했습니다.
+
+변경한 파일:
+- `src/components/posts/PostForm.tsx`: 글쓰기/수정 폼에서 `/api/mcp`를 호출하는 날씨 브리핑 영역 추가
+- `src/app/globals.css`: MCP 브리핑 입력과 결과 카드 스타일 추가
+
+동작 흐름:
+
+```text
+글쓰기 화면
+  -> 지역 입력
+  -> 브리핑 추가 버튼 클릭
+  -> POST /api/mcp
+  -> tools/call weather_current
+  -> 응답의 draft를 본문 textarea 끝에 추가
+```
+
+실패 처리:
+- 외부 API 호출에 실패하면 글쓰기 기본 기능은 그대로 유지하고 MCP 영역에 오류 메시지만 표시합니다.
+- MCP 응답 형식이 예상과 다르면 본문을 수정하지 않고 실패 메시지를 표시합니다.
