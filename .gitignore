@@ -8,6 +8,9 @@ next-ai-board/.env.*
 !next-ai-board/.env.example
 nest-board-api/md/
 nest-board-api/*dev*.log
+nest-board-api/frontend/.env
+nest-board-api/frontend/.env.*
+!nest-board-api/frontend/.env.example
 nest-board-api/frontend/node_modules/
 nest-board-api/frontend/dist/
 nest-board-api/frontend/tsconfig.tsbuildinfo

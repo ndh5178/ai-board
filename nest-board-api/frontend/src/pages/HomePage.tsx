@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
+import { BackendStatus } from "../components/BackendStatus";
 import { ButtonLink } from "../components/ButtonLink";
 import { PostList } from "../components/PostList";
 import { mockPosts, popularTags } from "../data/mockPosts";
@@ -49,6 +50,8 @@ export function HomePage() {
           </Link>
         ))}
       </section>
+
+      <BackendStatus />
 
       <section className="section">
         <div className="section__header">

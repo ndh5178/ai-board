@@ -60,3 +60,31 @@ http://localhost:5173
 - #37 React 인증 화면 및 로그인 상태 UI 구현
 - #38 React 게시글 목록 상세 작성 수정 화면 구현
 - #39 React 댓글 태그 검색 페이징 화면 구현
+
+### #36 React와 NestJS API 연결 구조 구현
+
+이번 작업에서는 React 화면에서 NestJS 백엔드 API를 호출하기 위한 기본 구조를 추가했습니다.
+
+추가한 역할:
+
+- `frontend/.env.example`: React에서 사용할 NestJS API 주소 예시입니다.
+- `frontend/src/api/client.ts`: API base URL과 공통 `fetch` 요청 함수를 관리합니다.
+- `frontend/src/api/health.ts`: NestJS `/health` API 호출 함수를 관리합니다.
+- `frontend/src/types/api.ts`: API 응답 타입을 관리합니다.
+- `frontend/src/components/BackendStatus.tsx`: 백엔드 연결 상태를 홈 화면에서 보여줍니다.
+
+현재 기본 API 주소:
+
+```text
+http://localhost:3001
+```
+
+프론트엔드는 아래 환경변수로 백엔드 주소를 바꿀 수 있습니다.
+
+```text
+VITE_API_BASE_URL=http://localhost:3001
+```
+
+아직 NestJS 백엔드 서버가 없기 때문에 홈 화면의 연결 상태는 `연결 대기`로 보이는 것이 정상입니다.
+
+나중에 NestJS에서 `GET /health` API를 만들면 이 영역이 `연결 완료`로 바뀝니다.
