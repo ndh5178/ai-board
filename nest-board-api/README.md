@@ -74,6 +74,71 @@ npm run build
 
 이 구조를 기준으로 이후 인증, 게시글, 댓글, 태그 API를 모듈 단위로 추가합니다.
 
+### #30 NestJS DB 연결 및 게시판 모델 설계
+
+이번 작업에서는 NestJS 백엔드에 MariaDB + Prisma 기반 DB 연결 구조를 추가했습니다.
+
+Prisma에서 MariaDB는 `provider = "mysql"` 설정을 사용합니다.
+
+추가한 역할:
+
+- `backend/prisma/schema.prisma`: 게시판 DB 모델을 정의합니다.
+- `backend/prisma.config.ts`: Prisma CLI가 schema와 `DATABASE_URL`을 읽는 설정입니다.
+- `backend/src/database/prisma.service.ts`: NestJS에서 Prisma Client를 사용할 수 있게 감싼 서비스입니다.
+- `backend/src/database/database.module.ts`: PrismaService를 앱 전체에서 사용할 수 있게 등록하는 모듈입니다.
+- `backend/src/health/health.controller.ts`: `GET /health/db` DB 연결 확인 API를 추가했습니다.
+- `backend/.env.example`: `DATABASE_URL` 예시를 추가했습니다.
+
+현재 설계한 DB 모델:
+
+- `User`: 회원 정보와 비밀번호 해시를 저장합니다.
+- `Post`: 게시글 제목, 내용, 작성자, 상태를 저장합니다.
+- `Comment`: 게시글 댓글을 저장합니다.
+- `Tag`: 태그 이름을 저장합니다.
+- `PostTag`: 게시글과 태그의 다대다 관계를 연결합니다.
+
+DB 관련 명령:
+
+```bash
+cd nest-board-api/backend
+npm run db:generate
+npm run db:migrate
+npm run db:studio
+```
+
+명령 역할:
+
+- `npm run db:generate`: Prisma schema를 기준으로 Prisma Client 타입을 생성합니다.
+- `npm run db:migrate`: DB에 테이블 구조를 적용합니다.
+- `npm run db:studio`: Prisma Studio로 DB 데이터를 확인합니다.
+
+DB 연결 확인 API:
+
+```text
+GET http://localhost:3001/health/db
+```
+
+현재 DB 요청 흐름:
+
+```text
+GET /health/db
+-> HealthController
+-> HealthService
+-> PrismaService
+-> MariaDB
+```
+
+검증한 명령:
+
+```bash
+cd nest-board-api/backend
+npm run db:generate
+npx prisma validate
+npm run build
+```
+
+실제 테이블 생성은 로컬 MariaDB 실행 후 `.env`에 `DATABASE_URL`을 설정하고 `npm run db:migrate`로 진행합니다.
+
 ### #35 React 프론트엔드 프로젝트 초기 설정 및 화면 구조 설계
 
 이번 작업에서는 `frontend` 폴더에 Vite 기반 React 프로젝트 구조를 만들었습니다.
