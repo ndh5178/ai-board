@@ -8,7 +8,7 @@ export function PostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { deletePost, getPostById } = usePosts();
+  const { deletePost, getPostById, posts } = usePosts();
   const post = getPostById(id);
 
   if (!post) {
@@ -22,6 +22,9 @@ export function PostDetailPage() {
   }
 
   const isAuthor = post.authorEmail === user?.email;
+  const postIndex = posts.findIndex((item) => item.id === post.id);
+  const previousPost = postIndex >= 0 ? posts[postIndex + 1] : undefined;
+  const nextPost = postIndex > 0 ? posts[postIndex - 1] : undefined;
   const handleDelete = () => {
     const confirmed = window.confirm("게시글을 삭제할까요?");
 
@@ -72,6 +75,24 @@ export function PostDetailPage() {
         <div className="post-detail__content">
           <p>{post.content}</p>
         </div>
+        {previousPost || nextPost ? (
+          <nav className="post-detail__nav" aria-label="이전글 다음글">
+            {previousPost ? (
+              <Link className="post-detail__nav-link" to={`/posts/${previousPost.id}`}>
+                <span>이전글</span>
+                <strong>{previousPost.title}</strong>
+                <small>{previousPost.createdAt}</small>
+              </Link>
+            ) : null}
+            {nextPost ? (
+              <Link className="post-detail__nav-link post-detail__nav-link--next" to={`/posts/${nextPost.id}`}>
+                <span>다음글</span>
+                <strong>{nextPost.title}</strong>
+                <small>{nextPost.createdAt}</small>
+              </Link>
+            ) : null}
+          </nav>
+        ) : null}
         <CommentSection post={post} />
       </article>
     </main>

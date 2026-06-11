@@ -18,10 +18,12 @@ type PostsContextValue = {
   addComment: (postId: string, input: CommentInput) => void;
   createPost: (input: PostInput) => string;
   deletePost: (id: string) => void;
+  deletePostsByAuthor: (authorEmail: string) => void;
   getPostById: (id: string | undefined) => PostSummary | undefined;
   posts: PostSummary[];
   popularTags: string[];
   removeComment: (postId: string, commentId: string) => void;
+  updateComment: (postId: string, commentId: string, content: string) => void;
   updatePost: (id: string, input: Pick<PostInput, "content" | "tags" | "title">) => void;
 };
 
@@ -125,6 +127,21 @@ export function PostsProvider({ children }: { children: ReactNode }) {
       deletePost: (id) => {
         setPosts((currentPosts) => currentPosts.filter((post) => post.id !== id));
       },
+      deletePostsByAuthor: (authorEmail) => {
+        setPosts((currentPosts) =>
+          currentPosts
+            .filter((post) => post.authorEmail !== authorEmail)
+            .map((post) => {
+              const comments = post.comments.filter((comment) => comment.authorEmail !== authorEmail);
+
+              return {
+                ...post,
+                commentCount: comments.length,
+                comments,
+              };
+            }),
+        );
+      },
       getPostById: (id) => {
         return posts.find((post) => post.id === id);
       },
@@ -145,6 +162,25 @@ export function PostsProvider({ children }: { children: ReactNode }) {
               comments,
             };
           }),
+        );
+      },
+      updateComment: (postId, commentId, content) => {
+        setPosts((currentPosts) =>
+          currentPosts.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  comments: post.comments.map((comment) =>
+                    comment.id === commentId
+                      ? {
+                          ...comment,
+                          content,
+                        }
+                      : comment,
+                  ),
+                }
+              : post,
+          ),
         );
       },
       updatePost: (id, { content, tags, title }) => {

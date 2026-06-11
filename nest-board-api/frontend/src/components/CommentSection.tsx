@@ -10,7 +10,8 @@ type CommentSectionProps = {
 
 export function CommentSection({ post }: CommentSectionProps) {
   const { user } = useAuth();
-  const { addComment, removeComment } = usePosts();
+  const { addComment, removeComment, updateComment } = usePosts();
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -37,6 +38,21 @@ export function CommentSection({ post }: CommentSectionProps) {
     });
     setMessage("");
     form.reset();
+  };
+  const handleEdit = (event: FormEvent<HTMLFormElement>, commentId: string) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const content = String(formData.get("content") ?? "").trim();
+
+    if (!content) {
+      setMessage("수정할 댓글 내용을 입력해 주세요.");
+      return;
+    }
+
+    updateComment(post.id, commentId, content);
+    setEditingCommentId(null);
+    setMessage("");
   };
 
   return (
@@ -74,9 +90,33 @@ export function CommentSection({ post }: CommentSectionProps) {
                   <strong>{comment.authorName}</strong>
                   <span>{comment.createdAt}</span>
                 </div>
-                <p className="comment__body">{comment.content}</p>
-                {canRemove ? (
+                {editingCommentId === comment.id ? (
+                  <form className="comment__edit-form" onSubmit={(event) => handleEdit(event, comment.id)}>
+                    <label>
+                      댓글 수정
+                      <textarea defaultValue={comment.content} name="content" rows={3} />
+                    </label>
+                    <div className="comment__edit-actions">
+                      <button className="button button--primary">수정 완료</button>
+                      <button
+                        className="button button--secondary"
+                        onClick={() => setEditingCommentId(null)}
+                        type="button"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="comment__body">{comment.content}</p>
+                )}
+                {canRemove && editingCommentId !== comment.id ? (
                   <div className="comment__actions">
+                    {comment.authorEmail === user?.email ? (
+                      <button onClick={() => setEditingCommentId(comment.id)} type="button">
+                        수정
+                      </button>
+                    ) : null}
                     <button onClick={() => removeComment(post.id, comment.id)} type="button">
                       삭제
                     </button>

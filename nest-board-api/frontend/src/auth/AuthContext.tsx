@@ -9,6 +9,7 @@ export type AuthUser = {
 };
 
 type AuthContextValue = {
+  deleteAccount: () => void;
   login: (input: LoginInput) => void;
   logout: () => void;
   signup: (input: SignupInput) => void;
@@ -50,6 +51,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return {
+      deleteAccount: () => {
+        setUser(null);
+        window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      },
       login: ({ email }: LoginInput) => {
         saveUser({
           email,
