@@ -8,8 +8,10 @@ import { usePosts } from "../posts/PostContext";
 export function PostsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { popularTags, posts } = usePosts();
+  const page = Math.max(Number(searchParams.get("page") ?? "1"), 1);
   const query = searchParams.get("q") ?? "";
   const tag = searchParams.get("tag") ?? "";
+  const pageSize = 3;
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
       const matchesQuery =
@@ -21,6 +23,15 @@ export function PostsPage() {
       return matchesQuery && matchesTag;
     });
   }, [posts, query, tag]);
+  const totalPages = Math.max(Math.ceil(filteredPosts.length / pageSize), 1);
+  const currentPage = Math.min(page, totalPages);
+  const pagedPosts = filteredPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const setPage = (nextPage: number) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("page", String(nextPage));
+    setSearchParams(nextParams);
+  };
 
   return (
     <PageShell
@@ -74,7 +85,27 @@ export function PostsPage() {
           ) : null}
         </div>
       </section>
-      <PostList posts={filteredPosts} />
+      <PostList posts={pagedPosts} />
+      {totalPages > 1 ? (
+        <nav className="pagination" aria-label="게시글 페이지">
+          <button disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} type="button">
+            이전
+          </button>
+          {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+            <button
+              className={pageNumber === currentPage ? "pagination__active" : undefined}
+              key={pageNumber}
+              onClick={() => setPage(pageNumber)}
+              type="button"
+            >
+              {pageNumber}
+            </button>
+          ))}
+          <button disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)} type="button">
+            다음
+          </button>
+        </nav>
+      ) : null}
     </PageShell>
   );
 }

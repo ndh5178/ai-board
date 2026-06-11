@@ -15,12 +15,20 @@ type PostInput = {
 };
 
 type PostsContextValue = {
+  addComment: (postId: string, input: CommentInput) => void;
   createPost: (input: PostInput) => string;
   deletePost: (id: string) => void;
   getPostById: (id: string | undefined) => PostSummary | undefined;
   posts: PostSummary[];
   popularTags: string[];
+  removeComment: (postId: string, commentId: string) => void;
   updatePost: (id: string, input: Pick<PostInput, "content" | "tags" | "title">) => void;
+};
+
+type CommentInput = {
+  authorEmail: string;
+  authorName: string;
+  content: string;
 };
 
 const PostsContext = createContext<PostsContextValue | null>(null);
@@ -33,6 +41,10 @@ function createExcerpt(content: string) {
 
 function createPostId() {
   return window.crypto?.randomUUID?.() ?? String(Date.now());
+}
+
+function createEntityId(prefix: string) {
+  return `${prefix}-${createPostId()}`;
 }
 
 function parseTags(tags: string) {
@@ -65,12 +77,39 @@ export function PostsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<PostsContextValue>(() => {
     return {
+      addComment: (postId, { authorEmail, authorName, content }) => {
+        setPosts((currentPosts) =>
+          currentPosts.map((post) => {
+            if (post.id !== postId) {
+              return post;
+            }
+
+            const comments = [
+              ...post.comments,
+              {
+                authorEmail,
+                authorName,
+                content,
+                createdAt: new Date().toISOString().slice(0, 10),
+                id: createEntityId("comment"),
+              },
+            ];
+
+            return {
+              ...post,
+              commentCount: comments.length,
+              comments,
+            };
+          }),
+        );
+      },
       createPost: ({ authorEmail, authorName, content, tags, title }) => {
         const post: PostSummary = {
           accent: accents[posts.length % accents.length],
           authorEmail,
           authorName,
           commentCount: 0,
+          comments: [],
           content,
           createdAt: new Date().toISOString().slice(0, 10),
           excerpt: createExcerpt(content),
@@ -91,6 +130,23 @@ export function PostsProvider({ children }: { children: ReactNode }) {
       },
       popularTags: Array.from(new Set(posts.flatMap((post) => post.tags))),
       posts,
+      removeComment: (postId, commentId) => {
+        setPosts((currentPosts) =>
+          currentPosts.map((post) => {
+            if (post.id !== postId) {
+              return post;
+            }
+
+            const comments = post.comments.filter((comment) => comment.id !== commentId);
+
+            return {
+              ...post,
+              commentCount: comments.length,
+              comments,
+            };
+          }),
+        );
+      },
       updatePost: (id, { content, tags, title }) => {
         setPosts((currentPosts) =>
           currentPosts.map((post) =>

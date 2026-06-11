@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { CommentSection } from "../components/CommentSection";
 import { PageShell } from "../components/PageShell";
 import { useAuth } from "../auth/AuthContext";
 import { usePosts } from "../posts/PostContext";
@@ -71,21 +72,7 @@ export function PostDetailPage() {
         <div className="post-detail__content">
           <p>{post.content}</p>
         </div>
-        <section className="post-detail__comments">
-          <div className="section__header">
-            <h2>댓글</h2>
-            <span className="section__badge">Mock</span>
-          </div>
-          <form className="comment-form">
-            <label>
-              댓글 내용
-              <textarea placeholder="API 연결 후 댓글을 저장합니다." rows={4} />
-            </label>
-            <button className="button button--primary" type="button">
-              댓글 등록
-            </button>
-          </form>
-        </section>
+        <CommentSection post={post} />
       </article>
     </main>
   );

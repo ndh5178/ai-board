@@ -122,3 +122,66 @@ VITE_API_BASE_URL=http://localhost:3001
 현재 게시글은 브라우저 `localStorage`에 임시 저장됩니다.
 
 나중에 NestJS 게시글 API가 완성되면 `PostContext`의 `createPost`, `updatePost`, `deletePost`, `getPostById` 흐름을 실제 API 호출로 교체하면 됩니다.
+
+### #39 React 댓글 태그 검색 페이징 화면 구현
+
+이번 작업에서는 게시글 상세와 목록 화면에서 댓글, 태그, 검색, 페이징 UI가 실제로 동작하도록 정리했습니다.
+
+추가한 역할:
+
+- `frontend/src/components/CommentSection.tsx`: 댓글 작성, 목록 표시, 삭제 UI를 관리합니다.
+- `frontend/src/posts/PostContext.tsx`: 댓글 추가/삭제 함수와 댓글 개수를 관리합니다.
+- `frontend/src/pages/PostDetailPage.tsx`: 댓글 섹션을 실제 게시글 데이터와 연결합니다.
+- `frontend/src/pages/PostsPage.tsx`: 검색, 태그 필터, 페이지 이동을 함께 처리합니다.
+
+현재 댓글과 게시글은 브라우저 `localStorage`에 임시 저장됩니다.
+
+나중에 NestJS API가 완성되면 댓글 작성/삭제, 검색, 태그, 페이징 흐름을 API 호출로 교체합니다.
+
+### #40 NestJS 독립 게시판 실행 문서 및 전체 흐름 정리
+
+현재 프론트엔드는 React + Vite로 실행하고, 백엔드는 이후 NestJS 프로젝트를 추가해 별도 서버로 실행합니다.
+
+현재 실행 가능한 서버:
+
+```text
+React 프론트엔드: http://localhost:5173
+```
+
+프론트엔드 실행:
+
+```bash
+cd nest-board-api/frontend
+npm install
+npm run dev
+```
+
+현재 준비된 프론트 흐름:
+
+```text
+index.html
+-> src/main.tsx
+-> AuthProvider
+-> PostsProvider
+-> App
+-> React Router
+-> Page 컴포넌트
+```
+
+현재 데이터 흐름:
+
+```text
+React 화면
+-> AuthContext / PostContext
+-> localStorage
+```
+
+나중에 NestJS API가 연결되면 바뀔 흐름:
+
+```text
+React 화면
+-> api client
+-> NestJS Controller
+-> NestJS Service
+-> DB
+```

@@ -9,4 +9,13 @@ export type PostSummary = {
   commentCount: number;
   tags: string[];
   accent: string;
+  comments: PostComment[];
+};
+
+export type PostComment = {
+  authorEmail: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+  id: string;
 };
