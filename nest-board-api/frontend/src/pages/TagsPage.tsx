@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 import { PageShell } from "../components/PageShell";
-import { popularTags } from "../data/mockPosts";
+import { usePosts } from "../posts/PostContext";
 
 export function TagsPage() {
+  const { popularTags } = usePosts();
+
   return (
     <PageShell description="게시글 태그를 모아서 보여주는 화면입니다." eyebrow="Tags" title="태그">
       <section className="tag-grid">

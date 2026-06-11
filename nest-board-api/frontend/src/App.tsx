@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SiteHeader } from "./components/SiteHeader";
+import { EditPostPage } from "./pages/EditPostPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { MyPage } from "./pages/MyPage";
@@ -26,6 +27,14 @@ export function App() {
           path="/posts/new"
         />
         <Route element={<PostDetailPage />} path="/posts/:id" />
+        <Route
+          element={
+            <ProtectedRoute>
+              <EditPostPage />
+            </ProtectedRoute>
+          }
+          path="/posts/:id/edit"
+        />
         <Route element={<LoginPage />} path="/login" />
         <Route
           element={

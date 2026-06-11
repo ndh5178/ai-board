@@ -2,6 +2,7 @@ import type { PostSummary } from "../types/post";
 
 export const mockPosts: PostSummary[] = [
   {
+    authorEmail: "donghyun@example.com",
     id: "1",
     title: "NestJS 게시판 API 구조를 어떻게 나누면 좋을까?",
     excerpt: "Controller, Service, Module 역할을 게시판 예제로 정리합니다.",
@@ -14,6 +15,7 @@ export const mockPosts: PostSummary[] = [
     accent: "#ef3f7b",
   },
   {
+    authorEmail: "jihyun@example.com",
     id: "2",
     title: "React 화면에서 API 연결 전 먼저 잡아야 하는 구조",
     excerpt: "페이지, 컴포넌트, API client를 분리하는 기준을 정리합니다.",
@@ -26,6 +28,7 @@ export const mockPosts: PostSummary[] = [
     accent: "#7c3cff",
   },
   {
+    authorEmail: "minsu@example.com",
     id: "3",
     title: "Next.js와 NestJS + React 구조는 뭐가 다를까?",
     excerpt: "한 프로젝트에서 처리하던 흐름을 프론트와 백엔드로 나눠 봅니다.",

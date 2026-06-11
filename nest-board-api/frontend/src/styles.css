@@ -312,6 +312,12 @@ button:disabled {
   border: 1px solid #e8e8ef;
 }
 
+.button--danger {
+  background: #fff1f3;
+  color: #d92d20;
+  border: 1px solid #ffd2d7;
+}
+
 .section,
 .api-status,
 .toolbar,

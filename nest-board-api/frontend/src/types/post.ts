@@ -1,4 +1,5 @@
 export type PostSummary = {
+  authorEmail: string;
   id: string;
   title: string;
   excerpt: string;

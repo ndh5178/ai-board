@@ -1,34 +1,17 @@
 import { PageShell } from "../components/PageShell";
 import { useAuth } from "../auth/AuthContext";
+import { PostForm } from "../components/PostForm";
 
 export function NewPostPage() {
   const { user } = useAuth();
 
   return (
     <PageShell
-      description={`${user?.name}님, 지금은 화면 구조만 만들고 다음 단계에서 NestJS 게시글 생성 API와 연결합니다.`}
+      description={`${user?.name}님, 지금은 localStorage 임시 저장소에 게시글을 저장하고 다음 단계에서 NestJS API로 교체합니다.`}
       eyebrow="Write"
       title="게시글 작성"
     >
-      <form className="form-panel">
-        <label>
-          제목
-          <input name="title" placeholder="제목을 입력하세요" />
-        </label>
-        <label>
-          내용
-          <textarea name="content" placeholder="내용을 입력하세요" rows={10} />
-        </label>
-        <label>
-          태그
-          <input name="tags" placeholder="React, NestJS, API" />
-        </label>
-        <div className="form-panel__actions">
-          <button className="button button--primary" type="button">
-            게시글 등록
-          </button>
-        </div>
-      </form>
+      <PostForm mode="create" />
     </PageShell>
   );
 }

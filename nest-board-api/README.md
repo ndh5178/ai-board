@@ -105,3 +105,20 @@ VITE_API_BASE_URL=http://localhost:3001
 현재 인증 상태는 브라우저 `localStorage`에 임시로 저장합니다.
 
 나중에 NestJS 인증 API가 완성되면 `AuthContext`의 `login`, `signup`, `logout` 내부를 실제 API 호출로 교체하면 됩니다.
+
+### #38 React 게시글 목록 상세 작성 수정 화면 구현
+
+이번 작업에서는 NestJS 게시글 API가 만들어지기 전에도 게시글 CRUD 화면 흐름을 확인할 수 있게 React 임시 게시글 저장소를 추가했습니다.
+
+추가한 역할:
+
+- `frontend/src/posts/PostContext.tsx`: 게시글 목록을 전역 상태와 `localStorage`로 관리합니다.
+- `frontend/src/components/PostForm.tsx`: 작성과 수정에서 함께 쓰는 게시글 폼입니다.
+- `frontend/src/pages/EditPostPage.tsx`: 게시글 수정 페이지입니다.
+- `frontend/src/pages/NewPostPage.tsx`: 게시글 작성 후 상세 페이지로 이동합니다.
+- `frontend/src/pages/PostDetailPage.tsx`: 작성자에게만 수정/삭제 버튼을 보여줍니다.
+- `frontend/src/pages/PostsPage.tsx`: 임시 저장소의 게시글을 검색하고 태그로 필터링합니다.
+
+현재 게시글은 브라우저 `localStorage`에 임시 저장됩니다.
+
+나중에 NestJS 게시글 API가 완성되면 `PostContext`의 `createPost`, `updatePost`, `deletePost`, `getPostById` 흐름을 실제 API 호출로 교체하면 됩니다.

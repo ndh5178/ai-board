@@ -1,0 +1,38 @@
+import { Link, useParams } from "react-router-dom";
+import { PostForm } from "../components/PostForm";
+import { PageShell } from "../components/PageShell";
+import { useAuth } from "../auth/AuthContext";
+import { usePosts } from "../posts/PostContext";
+
+export function EditPostPage() {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const { getPostById } = usePosts();
+  const post = getPostById(id);
+
+  if (!post) {
+    return (
+      <PageShell eyebrow="Not Found" title="게시글을 찾을 수 없습니다" description="목록에서 다시 선택해 주세요.">
+        <Link className="button button--secondary" to="/posts">
+          목록으로
+        </Link>
+      </PageShell>
+    );
+  }
+
+  if (post.authorEmail !== user?.email) {
+    return (
+      <PageShell eyebrow="Forbidden" title="수정 권한이 없습니다" description="작성자만 게시글을 수정할 수 있습니다.">
+        <Link className="button button--secondary" to={`/posts/${post.id}`}>
+          상세로 돌아가기
+        </Link>
+      </PageShell>
+    );
+  }
+
+  return (
+    <PageShell description="수정 후 상세 페이지로 돌아갑니다." eyebrow="Edit" title="게시글 수정">
+      <PostForm mode="edit" post={post} />
+    </PageShell>
+  );
+}

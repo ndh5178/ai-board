@@ -1,10 +1,14 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageShell } from "../components/PageShell";
-import { mockPosts } from "../data/mockPosts";
+import { useAuth } from "../auth/AuthContext";
+import { usePosts } from "../posts/PostContext";
 
 export function PostDetailPage() {
   const { id } = useParams();
-  const post = mockPosts.find((item) => item.id === id);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { deletePost, getPostById } = usePosts();
+  const post = getPostById(id);
 
   if (!post) {
     return (
@@ -15,6 +19,18 @@ export function PostDetailPage() {
       </PageShell>
     );
   }
+
+  const isAuthor = post.authorEmail === user?.email;
+  const handleDelete = () => {
+    const confirmed = window.confirm("게시글을 삭제할까요?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    deletePost(post.id);
+    navigate("/posts", { replace: true });
+  };
 
   return (
     <main className="page post-detail-page">
@@ -40,6 +56,16 @@ export function PostDetailPage() {
             <Link className="button button--primary" to="/posts/new">
               새 글쓰기
             </Link>
+            {isAuthor ? (
+              <>
+                <Link className="button button--secondary" to={`/posts/${post.id}/edit`}>
+                  수정
+                </Link>
+                <button className="button button--danger" onClick={handleDelete} type="button">
+                  삭제
+                </button>
+              </>
+            ) : null}
           </div>
         </header>
         <div className="post-detail__content">

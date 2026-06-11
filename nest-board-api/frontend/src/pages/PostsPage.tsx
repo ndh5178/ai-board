@@ -3,14 +3,15 @@ import { useSearchParams } from "react-router-dom";
 import { ButtonLink } from "../components/ButtonLink";
 import { PageShell } from "../components/PageShell";
 import { PostList } from "../components/PostList";
-import { mockPosts, popularTags } from "../data/mockPosts";
+import { usePosts } from "../posts/PostContext";
 
 export function PostsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { popularTags, posts } = usePosts();
   const query = searchParams.get("q") ?? "";
   const tag = searchParams.get("tag") ?? "";
   const filteredPosts = useMemo(() => {
-    return mockPosts.filter((post) => {
+    return posts.filter((post) => {
       const matchesQuery =
         !query ||
         post.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -19,12 +20,12 @@ export function PostsPage() {
 
       return matchesQuery && matchesTag;
     });
-  }, [query, tag]);
+  }, [posts, query, tag]);
 
   return (
     <PageShell
       actions={<ButtonLink to="/posts/new">글쓰기</ButtonLink>}
-      description={`현재는 mock 데이터 ${filteredPosts.length}개를 보여주고, 다음 이슈에서 NestJS API와 연결합니다.`}
+      description={`임시 저장소에 있는 게시글 ${filteredPosts.length}개를 검색하고 태그로 탐색합니다.`}
       eyebrow="Posts"
       title="게시글 목록"
     >
@@ -66,6 +67,11 @@ export function PostsPage() {
               {tagName}
             </button>
           ))}
+          {tag ? (
+            <button className="tag" onClick={() => setSearchParams({})} type="button">
+              필터 초기화
+            </button>
+          ) : null}
         </div>
       </section>
       <PostList posts={filteredPosts} />

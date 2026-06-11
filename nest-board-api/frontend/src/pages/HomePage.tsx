@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { BackendStatus } from "../components/BackendStatus";
 import { ButtonLink } from "../components/ButtonLink";
 import { PostList } from "../components/PostList";
-import { mockPosts, popularTags } from "../data/mockPosts";
+import { usePosts } from "../posts/PostContext";
 
 const dealItems = [
   { title: "NestJS API 서버", place: "Backend", rate: "API", price: "Controller -> Service -> DB" },
@@ -12,7 +12,8 @@ const dealItems = [
 ];
 
 export function HomePage() {
-  const heroItems = mockPosts.slice(0, 3);
+  const { popularTags, posts } = usePosts();
+  const heroItems = posts.slice(0, 3);
 
   return (
     <main className="ticket-page">
@@ -60,7 +61,7 @@ export function HomePage() {
             전체보기
           </ButtonLink>
         </div>
-        <PostList posts={mockPosts} />
+        <PostList posts={posts} />
       </section>
 
       <section className="section">
