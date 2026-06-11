@@ -139,6 +139,76 @@ npm run build
 
 실제 테이블 생성은 로컬 MariaDB 실행 후 `.env`에 `DATABASE_URL`을 설정하고 `npm run db:migrate`로 진행합니다.
 
+### #31 NestJS 회원가입 로그인 API 구현
+
+이번 작업에서는 NestJS 백엔드에 인증 API 구조를 추가했습니다.
+
+추가한 역할:
+
+- `backend/src/auth/auth.module.ts`: 인증 기능을 하나로 묶는 모듈입니다.
+- `backend/src/auth/auth.controller.ts`: `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout` 요청을 받습니다.
+- `backend/src/auth/auth.service.ts`: 회원가입, 로그인, 토큰 검증 로직을 처리합니다.
+- `backend/src/auth/auth.guard.ts`: 보호 API에서 `Authorization: Bearer 토큰`을 검사합니다.
+- `backend/src/auth/current-user.decorator.ts`: 컨트롤러에서 로그인 사용자를 쉽게 꺼낼 수 있게 합니다.
+- `backend/src/auth/password.ts`: Node.js `crypto`의 `scrypt`로 비밀번호를 해시하고 검증합니다.
+- `backend/src/auth/token.ts`: HMAC 기반 JWT access token을 만들고 검증합니다.
+- `backend/src/auth/auth.dto.ts`: 회원가입/로그인 요청 body를 읽고 기본 검증합니다.
+- `backend/src/auth/auth.types.ts`: 인증 사용자와 토큰 payload 타입을 관리합니다.
+- `backend/.env.example`: `JWT_SECRET`, `JWT_EXPIRES_IN_SECONDS` 예시를 추가했습니다.
+
+현재 인증 API:
+
+```text
+POST /auth/signup
+POST /auth/login
+GET /auth/me
+POST /auth/logout
+```
+
+회원가입 요청 예시:
+
+```json
+{
+  "email": "user@example.com",
+  "name": "사용자",
+  "password": "password123"
+}
+```
+
+로그인 성공 응답은 다음 형태입니다.
+
+```json
+{
+  "accessToken": "JWT_TOKEN",
+  "user": {
+    "id": "user_id",
+    "email": "user@example.com",
+    "name": "사용자",
+    "role": "USER"
+  }
+}
+```
+
+보호 API 요청 흐름:
+
+```text
+React frontend
+-> Authorization: Bearer accessToken
+-> AuthGuard
+-> AuthService.verifyToken()
+-> request.user 저장
+-> Controller에서 CurrentUser로 사용자 확인
+```
+
+로그아웃은 서버가 DB 세션을 지우는 방식이 아니라, 프론트엔드가 저장해둔 `accessToken`을 삭제하는 방식입니다.
+
+검증한 명령:
+
+```bash
+cd nest-board-api/backend
+npm run build
+```
+
 ### #35 React 프론트엔드 프로젝트 초기 설정 및 화면 구조 설계
 
 이번 작업에서는 `frontend` 폴더에 Vite 기반 React 프로젝트 구조를 만들었습니다.
