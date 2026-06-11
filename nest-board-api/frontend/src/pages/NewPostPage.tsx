@@ -1,9 +1,12 @@
 import { PageShell } from "../components/PageShell";
+import { useAuth } from "../auth/AuthContext";
 
 export function NewPostPage() {
+  const { user } = useAuth();
+
   return (
     <PageShell
-      description="지금은 화면 구조만 만들고, 다음 단계에서 NestJS 게시글 생성 API와 연결합니다."
+      description={`${user?.name}님, 지금은 화면 구조만 만들고 다음 단계에서 NestJS 게시글 생성 API와 연결합니다.`}
       eyebrow="Write"
       title="게시글 작성"
     >

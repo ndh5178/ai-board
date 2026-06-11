@@ -1,4 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 
 const navItems = [
   { to: "/", label: "홈" },
@@ -9,6 +10,8 @@ const navItems = [
 ];
 
 export function SiteHeader() {
+  const { logout, user } = useAuth();
+
   return (
     <header className="site-header">
       <div className="site-header__utility">
@@ -34,9 +37,20 @@ export function SiteHeader() {
             </NavLink>
           ))}
         </nav>
-        <Link className="site-header__login" to="/login">
-          로그인
-        </Link>
+        {user ? (
+          <div className="site-header__account">
+            <Link className="site-header__user" to="/me">
+              {user.name}
+            </Link>
+            <button className="site-header__logout" onClick={logout} type="button">
+              로그아웃
+            </button>
+          </div>
+        ) : (
+          <Link className="site-header__login" to="/login">
+            로그인
+          </Link>
+        )}
       </div>
     </header>
   );
