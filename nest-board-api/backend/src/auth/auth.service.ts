@@ -39,6 +39,7 @@ export class AuthService {
         email: input.email,
         name: input.name,
         passwordHash: await hashPassword(input.password),
+        role: this.isAdminEmail(input.email) ? "ADMIN" : "USER",
       },
       select: this.userSelect(),
     });
@@ -159,6 +160,14 @@ export class AuthService {
     }
 
     return rawValue;
+  }
+
+  private isAdminEmail(email: string) {
+    return (process.env.ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((adminEmail) => adminEmail.trim().toLowerCase())
+      .filter(Boolean)
+      .includes(email.toLowerCase());
   }
 
   private readSignupInput(body: SignupBody) {

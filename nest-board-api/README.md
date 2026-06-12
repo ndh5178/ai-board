@@ -792,3 +792,79 @@ cd nest-board-api/backend
 npm run db:generate
 npm run build
 ```
+
+## #44 MCP 관리자 채용공고 업데이트 구현
+
+이번 작업에서는 관리자가 설정 페이지에서 채용공고 업데이트를 실행하면 MCP JSON-RPC 흐름으로 채용공고를 가져와 DB에 저장하는 1차 구조를 추가했습니다.
+
+1차 구현은 외부 API 대신 mock provider를 사용합니다.
+
+추가한 역할:
+
+- `backend/src/auth/admin.guard.ts`: `ADMIN` 권한 사용자만 접근할 수 있게 막는 Guard입니다.
+- `backend/src/auth/auth.service.ts`: `.env`의 `ADMIN_EMAILS`에 포함된 이메일로 회원가입하면 `ADMIN` 권한을 부여합니다.
+- `backend/src/mcp/mcp.controller.ts`: `POST /mcp/json-rpc` 요청을 받습니다.
+- `backend/src/mcp/mcp.service.ts`: MCP JSON-RPC 요청을 해석하고 `job_sync` tool을 실행합니다.
+- `backend/src/mcp/mcp.dto.ts`: JSON-RPC 요청과 tool call 입력을 검증합니다.
+- `backend/src/mcp/mock-job-postings.ts`: 1차 구현용 mock 채용공고 데이터입니다.
+- `backend/src/mcp/mcp.module.ts`: MCP 관련 Controller와 Service를 묶습니다.
+- `backend/src/rag/rag.service.ts`: 마감일이 지난 ACTIVE 공고를 EXPIRED로 바꾸는 함수를 추가했습니다.
+- `frontend/src/pages/SettingsPage.tsx`: 관리자에게만 채용공고 업데이트 버튼을 보여주고 MCP API를 호출합니다.
+
+관리자 계정 설정:
+
+```env
+ADMIN_EMAILS=admin@example.com
+JOB_PROVIDER=mock
+```
+
+`ADMIN_EMAILS`에 들어간 이메일로 회원가입하면 해당 사용자는 `ADMIN` 권한을 받습니다.
+
+MCP 요청 예시:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "job-sync",
+  "method": "tools/call",
+  "params": {
+    "name": "job_sync",
+    "arguments": {
+      "provider": "mock"
+    }
+  }
+}
+```
+
+MCP 처리 흐름:
+
+```text
+관리자 설정 페이지
+-> 채용공고 업데이트 버튼 클릭
+-> POST /mcp/json-rpc
+-> AuthGuard
+-> AdminGuard
+-> McpController
+-> McpService
+-> mock job provider
+-> RagService.upsertJobPosting()
+-> JobPosting 테이블 저장
+```
+
+현재 지원 provider:
+
+```text
+mock
+```
+
+나중에 실제 채용공고 API를 붙일 때는 `mock-job-postings.ts` 대신 외부 API provider를 추가하고 `JOB_PROVIDER=external` 흐름으로 확장합니다.
+
+검증한 명령:
+
+```bash
+cd nest-board-api/backend
+npm run build
+
+cd nest-board-api/frontend
+npm run build
+```

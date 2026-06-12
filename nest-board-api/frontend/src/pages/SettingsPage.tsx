@@ -3,6 +3,24 @@ import { useNavigate } from "react-router-dom";
 import { PageShell } from "../components/PageShell";
 import { useAuth } from "../auth/AuthContext";
 import { usePosts } from "../posts/PostContext";
+import { apiRequest } from "../api/client";
+
+type JobSyncResponse = {
+  error?: {
+    code: number;
+    message: string;
+  };
+  id: string;
+  jsonrpc: "2.0";
+  result?: {
+    activeCount: number;
+    expiredCount: number;
+    expiredUpdatedCount: number;
+    provider: string;
+    syncedCount: number;
+    tool: "job_sync";
+  };
+};
 
 export function SettingsPage() {
   const { changePassword, deleteAccountFromServer, user } = useAuth();
@@ -10,8 +28,10 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const [passwordMessage, setPasswordMessage] = useState("");
   const [deleteMessage, setDeleteMessage] = useState("");
+  const [jobSyncMessage, setJobSyncMessage] = useState("");
   const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
   const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
+  const [isJobSyncSubmitting, setIsJobSyncSubmitting] = useState(false);
 
   const handlePasswordChange = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,15 +97,66 @@ export function SettingsPage() {
     navigate("/", { replace: true });
   };
 
+  const handleJobPostingSync = async () => {
+    setIsJobSyncSubmitting(true);
+    const result = await apiRequest<JobSyncResponse>("/mcp/json-rpc", {
+      auth: true,
+      body: {
+        id: "job-sync",
+        jsonrpc: "2.0",
+        method: "tools/call",
+        params: {
+          arguments: {
+            provider: "mock",
+          },
+          name: "job_sync",
+        },
+      },
+      method: "POST",
+    });
+    setIsJobSyncSubmitting(false);
+
+    if (!result.ok) {
+      setJobSyncMessage(result.message);
+      return;
+    }
+
+    if (result.data.error) {
+      setJobSyncMessage(result.data.error.message);
+      return;
+    }
+
+    if (!result.data.result) {
+      setJobSyncMessage("채용공고 업데이트 결과를 확인할 수 없습니다.");
+      return;
+    }
+
+    setJobSyncMessage(
+      `채용공고 ${result.data.result.syncedCount}개를 업데이트했습니다. ACTIVE ${result.data.result.activeCount}개, EXPIRED ${result.data.result.expiredCount}개`,
+    );
+  };
+
   return (
     <PageShell description="현재 계정 정보를 확인하고 비밀번호 변경, 회원 탈퇴를 관리합니다." eyebrow="My" title="설정">
       <section className="detail-panel">
         <h2>{user?.name}</h2>
         <p>이름: {user?.name}</p>
         <p>이메일: {user?.email}</p>
-        <p>권한: USER</p>
+        <p>권한: {user?.role}</p>
       </section>
       <section className="settings-grid" aria-label="계정 설정">
+        {user?.role === "ADMIN" ? (
+          <article className="settings-panel">
+            <div>
+              <h2>채용공고 업데이트</h2>
+              <p>관리자 권한으로 MCP job_sync 도구를 호출해 채용공고 데이터를 갱신합니다.</p>
+            </div>
+            {jobSyncMessage ? <p className="form-message">{jobSyncMessage}</p> : null}
+            <button className="button button--primary" disabled={isJobSyncSubmitting} onClick={handleJobPostingSync}>
+              {isJobSyncSubmitting ? "업데이트 중" : "채용공고 업데이트"}
+            </button>
+          </article>
+        ) : null}
         <article className="settings-panel">
           <div>
             <h2>비밀번호 변경</h2>

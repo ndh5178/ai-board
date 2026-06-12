@@ -120,6 +120,20 @@ export class RagService {
     });
   }
 
+  async expirePastDeadlineJobPostings() {
+    return this.prisma.jobPosting.updateMany({
+      data: {
+        status: "EXPIRED",
+      },
+      where: {
+        deadline: {
+          lt: new Date(),
+        },
+        status: "ACTIVE",
+      },
+    });
+  }
+
   private buildJobPostingText(input: UpsertJobPostingInput) {
     return [
       input.title,
