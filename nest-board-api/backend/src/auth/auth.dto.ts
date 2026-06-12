@@ -9,6 +9,15 @@ export type LoginBody = {
   password?: unknown;
 };
 
+export type ChangePasswordBody = {
+  currentPassword?: unknown;
+  nextPassword?: unknown;
+};
+
+export type DeleteAccountBody = {
+  confirmEmail?: unknown;
+};
+
 export function readRequiredString(value: unknown, fieldName: string) {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`${fieldName} 값이 필요합니다.`);

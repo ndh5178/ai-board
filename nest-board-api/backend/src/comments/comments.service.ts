@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import type { AuthUser } from "../auth/auth.types";
 import { PrismaService } from "../database/prisma.service";
-import { readCommentContent, type CreateCommentBody } from "./comments.dto";
+import { readCommentContent, type CreateCommentBody, type UpdateCommentBody } from "./comments.dto";
 
 @Injectable()
 export class CommentsService {
@@ -73,6 +73,40 @@ export class CommentsService {
     return {
       id,
       ok: true,
+    };
+  }
+
+  async update(id: string, body: UpdateCommentBody, user: AuthUser) {
+    const content = this.readCreateInput(body);
+    const comment = await this.prisma.comment.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        authorId: true,
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException("댓글을 찾을 수 없습니다.");
+    }
+
+    if (comment.authorId !== user.id && user.role !== "ADMIN") {
+      throw new ForbiddenException("댓글 작성자만 수정할 수 있습니다.");
+    }
+
+    const updatedComment = await this.prisma.comment.update({
+      data: {
+        content,
+      },
+      where: {
+        id,
+      },
+      select: this.commentSelect(),
+    });
+
+    return {
+      comment: updatedComment,
     };
   }
 

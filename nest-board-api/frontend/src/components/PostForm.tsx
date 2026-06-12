@@ -14,8 +14,9 @@ export function PostForm({ mode, post }: PostFormProps) {
   const { createPost, updatePost } = usePosts();
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!user) {
@@ -33,21 +34,36 @@ export function PostForm({ mode, post }: PostFormProps) {
       return;
     }
 
+    setIsSubmitting(true);
+
     if (mode === "edit" && post) {
-      updatePost(post.id, { content, tags, title });
+      const result = await updatePost(post.id, { content, tags, title });
+      setIsSubmitting(false);
+
+      if (!result.ok) {
+        setMessage(result.message);
+        return;
+      }
+
       navigate(`/posts/${post.id}`, { replace: true });
       return;
     }
 
-    const postId = createPost({
+    const result = await createPost({
       authorEmail: user.email,
       authorName: user.name,
       content,
       tags,
       title,
     });
+    setIsSubmitting(false);
 
-    navigate(`/posts/${postId}`, { replace: true });
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
+
+    navigate(`/posts/${result.data.id}`, { replace: true });
   };
 
   return (
@@ -66,8 +82,8 @@ export function PostForm({ mode, post }: PostFormProps) {
       </label>
       {message ? <p className="form-message">{message}</p> : null}
       <div className="form-panel__actions">
-        <button className="button button--primary">
-          {mode === "create" ? "게시글 등록" : "수정 완료"}
+        <button className="button button--primary" disabled={isSubmitting}>
+          {isSubmitting ? "저장 중" : mode === "create" ? "게시글 등록" : "수정 완료"}
         </button>
       </div>
     </form>

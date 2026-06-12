@@ -650,3 +650,94 @@ Next.js 게시판에서 이미 만들었던 프론트 기능 중 React 버전에
 - 회원 탈퇴 시 임시 저장소의 내 게시글과 댓글 정리
 
 현재는 모두 React `localStorage` 기반 임시 흐름이며, 이후 NestJS API가 생기면 각 Context 내부를 API 호출로 교체합니다.
+
+## React 프론트엔드 NestJS API 실제 연동
+
+이번 작업에서는 React 프론트엔드의 임시 `localStorage` 흐름을 NestJS 백엔드 API 호출 흐름으로 교체했습니다.
+
+작업 브랜치:
+
+```text
+feat/nest-board-api_frontend-api-integration
+```
+
+이번 작업은 별도 GitHub Issue 없이 진행했습니다.
+
+변경한 역할:
+
+- `frontend/src/api/client.ts`: 공통 API 요청 함수에 JWT access token 저장, 삭제, `Authorization` 헤더 처리를 추가했습니다.
+- `frontend/src/auth/AuthContext.tsx`: 회원가입, 로그인, 내 정보 복원을 `/auth/signup`, `/auth/login`, `/auth/me` API로 연결했습니다.
+- `frontend/src/posts/PostContext.tsx`: 게시글, 댓글, 태그, 검색, 페이징 데이터를 NestJS API에서 가져오도록 변경했습니다.
+- `frontend/src/pages/LoginPage.tsx`: 로그인 폼 제출 시 실제 로그인 API를 호출합니다.
+- `frontend/src/pages/SignupPage.tsx`: 회원가입 폼 제출 시 실제 회원가입 API를 호출합니다.
+- `frontend/src/pages/PostsPage.tsx`: 검색어, 태그, 페이지 값을 `GET /posts` 쿼리스트링으로 전달합니다.
+- `frontend/src/pages/PostDetailPage.tsx`: 상세 페이지 진입 시 `GET /posts/:id`로 최신 게시글과 댓글을 불러옵니다.
+- `frontend/src/pages/EditPostPage.tsx`: 수정 페이지 직접 접근 시에도 `GET /posts/:id`로 게시글을 불러옵니다.
+- `frontend/src/components/PostForm.tsx`: 게시글 작성과 수정을 `POST /posts`, `PATCH /posts/:id`로 연결했습니다.
+- `frontend/src/components/CommentSection.tsx`: 댓글 작성, 수정, 삭제를 NestJS 댓글 API로 연결했습니다.
+- `frontend/src/components/ProtectedRoute.tsx`: 새로고침 직후 토큰 복원 중에는 로그인 페이지로 바로 보내지 않고 확인 화면을 보여줍니다.
+- `backend/src/comments`: React 댓글 인라인 수정 화면을 지원하기 위해 `PATCH /comments/:id` API를 추가했습니다.
+- `backend/src/auth`: 비밀번호 변경과 회원 탈퇴를 위해 `PATCH /auth/password`, `DELETE /auth/me` API를 추가했습니다.
+
+현재 프론트엔드 데이터 흐름:
+
+```text
+React Page / Component
+-> AuthContext 또는 PostContext
+-> apiRequest()
+-> NestJS Controller
+-> NestJS Service
+-> PrismaService
+-> MariaDB
+```
+
+로그인 성공 후 인증 요청 흐름:
+
+```text
+POST /auth/login
+-> accessToken 저장
+-> 이후 auth: true API 요청
+-> Authorization: Bearer accessToken 헤더 자동 추가
+```
+
+현재 실제 API로 연결된 기능:
+
+- 회원가입
+- 로그인
+- 새로고침 후 로그인 상태 복원
+- 로그아웃
+- 게시글 목록
+- 게시글 상세
+- 게시글 작성
+- 게시글 수정
+- 게시글 삭제
+- 댓글 작성
+- 댓글 수정
+- 댓글 삭제
+- 태그 목록
+- 검색
+- 태그 필터
+- 페이징
+- 비밀번호 변경
+- 회원 탈퇴
+
+계정 설정 API:
+
+```text
+PATCH /auth/password
+DELETE /auth/me
+```
+
+비밀번호 변경은 현재 비밀번호를 검증한 뒤 새 비밀번호 해시로 교체합니다.
+
+회원 탈퇴는 현재 이메일을 한 번 더 입력해 확인하고, 사용자 계정을 삭제합니다. DB 관계는 `onDelete: Cascade`로 설정되어 있어 해당 사용자의 게시글과 댓글도 함께 삭제됩니다.
+
+검증한 명령:
+
+```bash
+cd nest-board-api/backend
+npm run build
+
+cd nest-board-api/frontend
+npm run build
+```

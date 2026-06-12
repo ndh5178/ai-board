@@ -1,18 +1,23 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-
-const AUTH_STORAGE_KEY = "nest-board-auth";
+import { apiRequest, clearAuthToken, saveAuthToken } from "../api/client";
+import type { ApiResult } from "../types/api";
 
 export type AuthUser = {
   email: string;
+  id: string;
   name: string;
+  role: "USER" | "ADMIN";
 };
 
 type AuthContextValue = {
+  changePassword: (input: ChangePasswordInput) => Promise<ApiResult<ActionResponse>>;
   deleteAccount: () => void;
-  login: (input: LoginInput) => void;
+  deleteAccountFromServer: (input: DeleteAccountInput) => Promise<ApiResult<ActionResponse>>;
+  isAuthLoading: boolean;
+  login: (input: LoginInput) => Promise<ApiResult<AuthResponse>>;
   logout: () => void;
-  signup: (input: SignupInput) => void;
+  signup: (input: SignupInput) => Promise<ApiResult<AuthResponse>>;
   user: AuthUser | null;
 };
 
@@ -25,55 +30,136 @@ type SignupInput = LoginInput & {
   name: string;
 };
 
+type ChangePasswordInput = {
+  currentPassword: string;
+  nextPassword: string;
+};
+
+type DeleteAccountInput = {
+  confirmEmail: string;
+};
+
+type AuthResponse = {
+  accessToken: string;
+  user: AuthUser;
+};
+
+type ActionResponse = {
+  message: string;
+  ok: true;
+};
+
+type MeResponse = {
+  user: AuthUser;
+};
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   useEffect(() => {
-    const rawUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    let ignore = false;
 
-    if (!rawUser) {
-      return;
+    async function loadUser() {
+      const result = await apiRequest<MeResponse>("/auth/me", {
+        auth: true,
+      });
+
+      if (ignore) {
+        return;
+      }
+
+      if (result.ok) {
+        setUser(result.data.user);
+      } else {
+        clearAuthToken();
+        setUser(null);
+      }
+
+      setIsAuthLoading(false);
     }
 
-    try {
-      setUser(JSON.parse(rawUser) as AuthUser);
-    } catch {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    }
+    void loadUser();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
-    const saveUser = (nextUser: AuthUser) => {
-      setUser(nextUser);
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
+    const saveAuth = (authResponse: AuthResponse) => {
+      saveAuthToken(authResponse.accessToken);
+      setUser(authResponse.user);
     };
 
     return {
-      deleteAccount: () => {
-        setUser(null);
-        window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      },
-      login: ({ email }: LoginInput) => {
-        saveUser({
-          email,
-          name: email.split("@")[0] || "사용자",
+      changePassword: async (input) => {
+        const result = await apiRequest<ActionResponse>("/auth/password", {
+          auth: true,
+          body: input,
+          method: "PATCH",
         });
+
+        if (result.ok) {
+          clearAuthToken();
+          setUser(null);
+        }
+
+        return result;
+      },
+      deleteAccount: () => {
+        clearAuthToken();
+        setUser(null);
+      },
+      deleteAccountFromServer: async (input) => {
+        const result = await apiRequest<ActionResponse>("/auth/me", {
+          auth: true,
+          body: input,
+          method: "DELETE",
+        });
+
+        if (result.ok) {
+          clearAuthToken();
+          setUser(null);
+        }
+
+        return result;
+      },
+      isAuthLoading,
+      login: async (input) => {
+        const result = await apiRequest<AuthResponse>("/auth/login", {
+          body: input,
+          method: "POST",
+        });
+
+        if (result.ok) {
+          saveAuth(result.data);
+        }
+
+        return result;
       },
       logout: () => {
+        clearAuthToken();
         setUser(null);
-        window.localStorage.removeItem(AUTH_STORAGE_KEY);
       },
-      signup: ({ email, name }: SignupInput) => {
-        saveUser({
-          email,
-          name: name.trim() || email.split("@")[0] || "사용자",
+      signup: async (input) => {
+        const result = await apiRequest<AuthResponse>("/auth/signup", {
+          body: input,
+          method: "POST",
         });
+
+        if (result.ok) {
+          clearAuthToken();
+          setUser(null);
+        }
+
+        return result;
       },
       user,
     };
-  }, [user]);
+  }, [isAuthLoading, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

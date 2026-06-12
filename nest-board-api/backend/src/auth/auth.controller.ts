@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Patch, Post, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "./auth.guard";
 import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
-import type { LoginBody, SignupBody } from "./auth.dto";
+import type { ChangePasswordBody, DeleteAccountBody, LoginBody, SignupBody } from "./auth.dto";
 import type { AuthUser } from "./auth.types";
 
 @Controller("auth")
@@ -23,6 +23,18 @@ export class AuthController {
   @UseGuards(AuthGuard)
   getMe(@CurrentUser() user: AuthUser) {
     return this.authService.getProfile(user);
+  }
+
+  @Patch("password")
+  @UseGuards(AuthGuard)
+  changePassword(@Body() body: ChangePasswordBody, @CurrentUser() user: AuthUser) {
+    return this.authService.changePassword(body, user);
+  }
+
+  @Delete("me")
+  @UseGuards(AuthGuard)
+  deleteAccount(@Body() body: DeleteAccountBody, @CurrentUser() user: AuthUser) {
+    return this.authService.deleteAccount(body, user);
   }
 
   @Post("logout")

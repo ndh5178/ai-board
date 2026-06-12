@@ -13,8 +13,9 @@ export function CommentSection({ post }: CommentSectionProps) {
   const { addComment, removeComment, updateComment } = usePosts();
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!user) {
@@ -31,15 +32,23 @@ export function CommentSection({ post }: CommentSectionProps) {
       return;
     }
 
-    addComment(post.id, {
+    setIsSubmitting(true);
+    const result = await addComment(post.id, {
       authorEmail: user.email,
       authorName: user.name,
       content,
     });
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
+
     setMessage("");
     form.reset();
   };
-  const handleEdit = (event: FormEvent<HTMLFormElement>, commentId: string) => {
+  const handleEdit = async (event: FormEvent<HTMLFormElement>, commentId: string) => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
@@ -50,16 +59,30 @@ export function CommentSection({ post }: CommentSectionProps) {
       return;
     }
 
-    updateComment(post.id, commentId, content);
+    const result = await updateComment(post.id, commentId, content);
+
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
+
     setEditingCommentId(null);
     setMessage("");
+  };
+
+  const handleRemove = async (commentId: string) => {
+    const result = await removeComment(post.id, commentId);
+
+    if (!result.ok) {
+      setMessage(result.message);
+    }
   };
 
   return (
     <section className="post-detail__comments">
       <div className="section__header">
         <h2>댓글 {post.comments.length}</h2>
-        <span className="section__badge">Local</span>
+        <span className="section__badge">API</span>
       </div>
       {user ? (
         <form className="comment-form" onSubmit={handleSubmit}>
@@ -68,7 +91,9 @@ export function CommentSection({ post }: CommentSectionProps) {
             <textarea name="content" placeholder="댓글을 입력하세요" rows={4} />
           </label>
           {message ? <p className="form-message">{message}</p> : null}
-          <button className="button button--primary">댓글 등록</button>
+          <button className="button button--primary" disabled={isSubmitting}>
+            {isSubmitting ? "등록 중" : "댓글 등록"}
+          </button>
         </form>
       ) : (
         <div className="empty-state empty-state--compact">
@@ -117,7 +142,7 @@ export function CommentSection({ post }: CommentSectionProps) {
                         수정
                       </button>
                     ) : null}
-                    <button onClick={() => removeComment(post.id, comment.id)} type="button">
+                    <button onClick={() => void handleRemove(comment.id)} type="button">
                       삭제
                     </button>
                   </div>

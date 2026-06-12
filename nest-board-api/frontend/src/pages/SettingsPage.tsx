@@ -5,13 +5,15 @@ import { useAuth } from "../auth/AuthContext";
 import { usePosts } from "../posts/PostContext";
 
 export function SettingsPage() {
-  const { deleteAccount, user } = useAuth();
+  const { changePassword, deleteAccountFromServer, user } = useAuth();
   const { deletePostsByAuthor } = usePosts();
   const navigate = useNavigate();
   const [passwordMessage, setPasswordMessage] = useState("");
   const [deleteMessage, setDeleteMessage] = useState("");
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+  const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
 
-  const handlePasswordChange = (event: FormEvent<HTMLFormElement>) => {
+  const handlePasswordChange = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
@@ -23,11 +25,29 @@ export function SettingsPage() {
       return;
     }
 
-    setPasswordMessage("현재는 프론트 임시 상태라 비밀번호 변경 UI만 확인합니다.");
+    setIsPasswordSubmitting(true);
+    const result = await changePassword({
+      currentPassword,
+      nextPassword,
+    });
+    setIsPasswordSubmitting(false);
+
+    if (!result.ok) {
+      setPasswordMessage(result.message);
+      return;
+    }
+
+    setPasswordMessage(result.data.message);
     event.currentTarget.reset();
+    navigate("/login", {
+      replace: true,
+      state: {
+        message: result.data.message,
+      },
+    });
   };
 
-  const handleDeleteAccount = (event: FormEvent<HTMLFormElement>) => {
+  const handleDeleteAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!user) {
@@ -42,8 +62,18 @@ export function SettingsPage() {
       return;
     }
 
+    setIsDeleteSubmitting(true);
+    const result = await deleteAccountFromServer({
+      confirmEmail: email,
+    });
+    setIsDeleteSubmitting(false);
+
+    if (!result.ok) {
+      setDeleteMessage(result.message);
+      return;
+    }
+
     deletePostsByAuthor(user.email);
-    deleteAccount();
     navigate("/", { replace: true });
   };
 
@@ -59,7 +89,7 @@ export function SettingsPage() {
         <article className="settings-panel">
           <div>
             <h2>비밀번호 변경</h2>
-            <p>현재는 UI 흐름만 확인하고, 백엔드 인증 API가 생기면 실제 변경 요청으로 교체합니다.</p>
+            <p>현재 비밀번호를 확인한 뒤 새 비밀번호로 변경합니다.</p>
           </div>
           <form className="settings-form" onSubmit={handlePasswordChange}>
             <label>
@@ -71,13 +101,15 @@ export function SettingsPage() {
               <input name="nextPassword" type="password" />
             </label>
             {passwordMessage ? <p className="form-message">{passwordMessage}</p> : null}
-            <button className="button button--primary">비밀번호 변경</button>
+            <button className="button button--primary" disabled={isPasswordSubmitting}>
+              {isPasswordSubmitting ? "변경 중" : "비밀번호 변경"}
+            </button>
           </form>
         </article>
         <article className="settings-panel settings-panel--danger">
           <div>
             <h2>회원 탈퇴</h2>
-            <p>탈퇴하면 임시 저장소의 내 게시글과 댓글이 함께 정리됩니다.</p>
+            <p>탈퇴하면 계정과 연결된 게시글, 댓글이 함께 삭제됩니다.</p>
           </div>
           <form className="settings-form" onSubmit={handleDeleteAccount}>
             <p className="settings-warning">탈퇴 확인을 위해 현재 이메일을 입력하세요.</p>
@@ -86,7 +118,9 @@ export function SettingsPage() {
               <input name="email" placeholder={user?.email} />
             </label>
             {deleteMessage ? <p className="form-message">{deleteMessage}</p> : null}
-            <button className="button button--danger">회원 탈퇴</button>
+            <button className="button button--danger" disabled={isDeleteSubmitting}>
+              {isDeleteSubmitting ? "탈퇴 중" : "회원 탈퇴"}
+            </button>
           </form>
         </article>
       </section>

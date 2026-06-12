@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ButtonLink } from "../components/ButtonLink";
 import { PageShell } from "../components/PageShell";
@@ -7,25 +7,35 @@ import { usePosts } from "../posts/PostContext";
 
 export function PostsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { popularTags, posts } = usePosts();
+  const { loadPosts, page: currentPage, popularTags, posts, totalCount, totalPages } = usePosts();
   const page = Math.max(Number(searchParams.get("page") ?? "1"), 1);
   const query = searchParams.get("q") ?? "";
   const tag = searchParams.get("tag") ?? "";
-  const pageSize = 3;
-  const filteredPosts = useMemo(() => {
-    return posts.filter((post) => {
-      const matchesQuery =
-        !query ||
-        post.title.toLowerCase().includes(query.toLowerCase()) ||
-        post.excerpt.toLowerCase().includes(query.toLowerCase());
-      const matchesTag = !tag || post.tags.includes(tag);
+  const pageSize = 10;
+  const [message, setMessage] = useState("");
 
-      return matchesQuery && matchesTag;
-    });
-  }, [posts, query, tag]);
-  const totalPages = Math.max(Math.ceil(filteredPosts.length / pageSize), 1);
-  const currentPage = Math.min(page, totalPages);
-  const pagedPosts = filteredPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchPosts() {
+      const result = await loadPosts({
+        page,
+        pageSize,
+        q: query,
+        tag,
+      });
+
+      if (!ignore && !result.ok) {
+        setMessage(result.message);
+      }
+    }
+
+    void fetchPosts();
+
+    return () => {
+      ignore = true;
+    };
+  }, [page, query, tag]);
 
   const setPage = (nextPage: number) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -36,10 +46,11 @@ export function PostsPage() {
   return (
     <PageShell
       actions={<ButtonLink to="/posts/new">글쓰기</ButtonLink>}
-      description={`임시 저장소에 있는 게시글 ${filteredPosts.length}개를 검색하고 태그로 탐색합니다.`}
+      description={`NestJS API에 저장된 게시글 ${totalCount}개를 검색하고 태그로 탐색합니다.`}
       eyebrow="Posts"
       title="게시글 목록"
-    >
+      >
+      {message ? <p className="form-message">{message}</p> : null}
       <section className="toolbar">
         <form
           className="search-bar"
@@ -85,7 +96,7 @@ export function PostsPage() {
           ) : null}
         </div>
       </section>
-      <PostList posts={pagedPosts} />
+      <PostList posts={posts} />
       {totalPages > 1 ? (
         <nav className="pagination" aria-label="게시글 페이지">
           <button disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} type="button">

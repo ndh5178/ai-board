@@ -5,7 +5,15 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
-import { readEmail, readPassword, readRequiredString, type LoginBody, type SignupBody } from "./auth.dto";
+import {
+  readEmail,
+  readPassword,
+  readRequiredString,
+  type ChangePasswordBody,
+  type DeleteAccountBody,
+  type LoginBody,
+  type SignupBody,
+} from "./auth.dto";
 import type { AuthUser } from "./auth.types";
 import { hashPassword, verifyPassword } from "./password";
 import { createAccessToken, verifyAccessToken } from "./token";
@@ -61,6 +69,55 @@ export class AuthService {
   getProfile(user: AuthUser) {
     return {
       user,
+    };
+  }
+
+  async changePassword(body: ChangePasswordBody, user: AuthUser) {
+    const input = this.readChangePasswordInput(body);
+    const currentUser = await this.prisma.user.findUnique({
+      where: {
+        id: user.id,
+      },
+      select: {
+        passwordHash: true,
+      },
+    });
+
+    if (!currentUser || !(await verifyPassword(input.currentPassword, currentUser.passwordHash))) {
+      throw new UnauthorizedException("현재 비밀번호가 올바르지 않습니다.");
+    }
+
+    await this.prisma.user.update({
+      data: {
+        passwordHash: await hashPassword(input.nextPassword),
+      },
+      where: {
+        id: user.id,
+      },
+    });
+
+    return {
+      message: "비밀번호가 변경되었습니다. 다시 로그인해 주세요.",
+      ok: true,
+    };
+  }
+
+  async deleteAccount(body: DeleteAccountBody, user: AuthUser) {
+    const input = this.readDeleteAccountInput(body);
+
+    if (input.confirmEmail !== user.email) {
+      throw new BadRequestException("탈퇴 확인 email이 현재 계정과 일치하지 않습니다.");
+    }
+
+    await this.prisma.user.delete({
+      where: {
+        id: user.id,
+      },
+    });
+
+    return {
+      message: "회원 탈퇴가 완료되었습니다.",
+      ok: true,
     };
   }
 
@@ -121,6 +178,34 @@ export class AuthService {
       return {
         email: readEmail(body.email),
         password: readPassword(body.password),
+      };
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : "입력값을 확인해주세요.");
+    }
+  }
+
+  private readChangePasswordInput(body: ChangePasswordBody) {
+    try {
+      const currentPassword = readPassword(body.currentPassword);
+      const nextPassword = readPassword(body.nextPassword);
+
+      if (currentPassword === nextPassword) {
+        throw new Error("새 비밀번호는 현재 비밀번호와 달라야 합니다.");
+      }
+
+      return {
+        currentPassword,
+        nextPassword,
+      };
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : "입력값을 확인해주세요.");
+    }
+  }
+
+  private readDeleteAccountInput(body: DeleteAccountBody) {
+    try {
+      return {
+        confirmEmail: readEmail(body.confirmEmail),
       };
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : "입력값을 확인해주세요.");

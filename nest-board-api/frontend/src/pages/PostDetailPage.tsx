@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { CommentSection } from "../components/CommentSection";
 import { PageShell } from "../components/PageShell";
 import { useAuth } from "../auth/AuthContext";
@@ -8,12 +9,32 @@ export function PostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { deletePost, getPostById, posts } = usePosts();
+  const { deletePost, fetchPostById, getPostById, posts } = usePosts();
+  const [message, setMessage] = useState("");
   const post = getPostById(id);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadPost() {
+      const result = await fetchPostById(id);
+
+      if (!ignore && !result.ok) {
+        setMessage(result.message);
+      }
+    }
+
+    void loadPost();
+
+    return () => {
+      ignore = true;
+    };
+  }, [id]);
 
   if (!post) {
     return (
       <PageShell eyebrow="Not Found" title="게시글을 찾을 수 없습니다" description="목록에서 다시 선택해 주세요.">
+        {message ? <p className="form-message">{message}</p> : null}
         <Link className="button button--secondary" to="/posts">
           목록으로
         </Link>
@@ -25,14 +46,20 @@ export function PostDetailPage() {
   const postIndex = posts.findIndex((item) => item.id === post.id);
   const previousPost = postIndex >= 0 ? posts[postIndex + 1] : undefined;
   const nextPost = postIndex > 0 ? posts[postIndex - 1] : undefined;
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const confirmed = window.confirm("게시글을 삭제할까요?");
 
     if (!confirmed) {
       return;
     }
 
-    deletePost(post.id);
+    const result = await deletePost(post.id);
+
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
+
     navigate("/posts", { replace: true });
   };
 
@@ -54,6 +81,7 @@ export function PostDetailPage() {
             <span>댓글 {post.commentCount}</span>
           </div>
           <div className="post-detail__actions">
+            {message ? <p className="form-message">{message}</p> : null}
             <Link className="button button--secondary" to="/posts">
               목록으로
             </Link>
@@ -65,7 +93,7 @@ export function PostDetailPage() {
                 <Link className="button button--secondary" to={`/posts/${post.id}/edit`}>
                   수정
                 </Link>
-                <button className="button button--danger" onClick={handleDelete} type="button">
+                <button className="button button--danger" onClick={() => void handleDelete()} type="button">
                   삭제
                 </button>
               </>

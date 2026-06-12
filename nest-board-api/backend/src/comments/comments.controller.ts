@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
 import type { AuthUser } from "../auth/auth.types";
 import { CurrentUser } from "../auth/current-user.decorator";
-import type { CreateCommentBody } from "./comments.dto";
+import type { CreateCommentBody, UpdateCommentBody } from "./comments.dto";
 import { CommentsService } from "./comments.service";
 
 @Controller()
@@ -23,5 +23,11 @@ export class CommentsController {
   @UseGuards(AuthGuard)
   remove(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.commentsService.remove(id, user);
+  }
+
+  @Patch("comments/:id")
+  @UseGuards(AuthGuard)
+  update(@Param("id") id: string, @Body() body: UpdateCommentBody, @CurrentUser() user: AuthUser) {
+    return this.commentsService.update(id, body, user);
   }
 }

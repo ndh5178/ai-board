@@ -7,10 +7,13 @@ export function LoginPage() {
   const { login } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(
+    typeof location.state?.message === "string" ? location.state.message : "",
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const from = typeof location.state?.from === "string" ? location.state.from : "/";
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
@@ -22,12 +25,20 @@ export function LoginPage() {
       return;
     }
 
-    login({ email, password });
+    setIsSubmitting(true);
+    const result = await login({ email, password });
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
+
     navigate(from, { replace: true });
   };
 
   return (
-    <PageShell description="NestJS 인증 API와 연결하기 전 로그인 화면 구조를 먼저 잡습니다." eyebrow="Auth" title="로그인">
+    <PageShell description="NestJS 인증 API로 로그인하고 accessToken을 저장합니다." eyebrow="Auth" title="로그인">
       <section className="auth-panel">
         <form className="auth-form" onSubmit={handleSubmit}>
           <label>
@@ -39,8 +50,8 @@ export function LoginPage() {
             <input name="password" placeholder="비밀번호" type="password" />
           </label>
           {message ? <p className="form-message">{message}</p> : null}
-          <button className="button button--primary">
-            로그인
+          <button className="button button--primary" disabled={isSubmitting}>
+            {isSubmitting ? "로그인 중" : "로그인"}
           </button>
         </form>
         <p>

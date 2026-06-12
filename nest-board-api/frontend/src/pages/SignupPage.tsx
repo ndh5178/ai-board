@@ -7,8 +7,9 @@ export function SignupPage() {
   const { signup } = useAuth();
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
@@ -21,12 +22,25 @@ export function SignupPage() {
       return;
     }
 
-    signup({ email, name, password });
-    navigate("/me", { replace: true });
+    setIsSubmitting(true);
+    const result = await signup({ email, name, password });
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
+
+    navigate("/login", {
+      replace: true,
+      state: {
+        message: "회원가입이 완료되었습니다. 로그인해 주세요.",
+      },
+    });
   };
 
   return (
-    <PageShell description="회원가입 API 연결 전 입력 폼과 화면 흐름을 준비합니다." eyebrow="Auth" title="회원가입">
+    <PageShell description="NestJS 인증 API로 계정을 만든 뒤 로그인 페이지로 이동합니다." eyebrow="Auth" title="회원가입">
       <section className="auth-panel">
         <form className="auth-form" onSubmit={handleSubmit}>
           <label>
@@ -42,8 +56,8 @@ export function SignupPage() {
             <input name="password" placeholder="비밀번호" type="password" />
           </label>
           {message ? <p className="form-message">{message}</p> : null}
-          <button className="button button--primary">
-            회원가입
+          <button className="button button--primary" disabled={isSubmitting}>
+            {isSubmitting ? "가입 중" : "회원가입"}
           </button>
         </form>
         <p>
