@@ -741,3 +741,54 @@ npm run build
 cd nest-board-api/frontend
 npm run build
 ```
+
+## #43 RAG 채용공고 임베딩 검색 구현
+
+이번 작업에서는 AI 채용공고 추천 댓글 기능의 RAG 기반 검색 구조를 추가했습니다.
+
+RAG 검색 대상은 기존 게시글이 아니라 `JobPosting`에 저장된 채용공고입니다.
+
+추가한 역할:
+
+- `backend/prisma/schema.prisma`: `JobPostingStatus`, `JobPosting` 모델을 추가했습니다.
+- `backend/prisma/migrations/20260612083000_add_job_postings/migration.sql`: 채용공고 저장 테이블 생성 마이그레이션입니다.
+- `backend/src/rag/embedding.ts`: 채용공고와 사용자 글을 숫자 벡터로 바꾸고 cosine similarity를 계산합니다.
+- `backend/src/rag/rag.dto.ts`: RAG 검색 쿼리 입력을 읽고 검증합니다.
+- `backend/src/rag/rag.module.ts`: RAG 기능을 NestJS 모듈로 묶습니다.
+- `backend/src/rag/rag.controller.ts`: `GET /rag/job-postings/search` 요청을 받습니다.
+- `backend/src/rag/rag.service.ts`: 채용공고 upsert와 유사도 검색을 처리합니다.
+- `backend/src/app.module.ts`: `RagModule`을 앱에 연결했습니다.
+
+현재 RAG 검색 흐름:
+
+```text
+GET /rag/job-postings/search?q=nestjs backend junior
+-> RagController
+-> RagService
+-> 사용자 검색어 임베딩
+-> ACTIVE JobPosting 목록 조회
+-> 채용공고 임베딩과 cosine similarity 비교
+-> 점수가 높은 공고 순서로 반환
+```
+
+채용공고 저장 흐름:
+
+```text
+MCP 또는 관리자 공고 업데이트
+-> RagService.upsertJobPosting()
+-> source + externalId 기준 upsert
+-> 채용공고 내용 임베딩
+-> JobPosting 테이블 저장
+```
+
+1차 구현에서는 외부 API나 OpenAI Embedding API를 바로 붙이지 않고, 로컬 해시 기반 임베딩으로 구조를 먼저 만들었습니다.
+
+나중에 실제 Embedding 모델을 붙일 때는 `backend/src/rag/embedding.ts`의 `createEmbedding()` 내부를 교체하면 됩니다.
+
+검증한 명령:
+
+```bash
+cd nest-board-api/backend
+npm run db:generate
+npm run build
+```

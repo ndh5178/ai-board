@@ -17,6 +17,12 @@ enum PostStatus {
   HIDDEN
 }
 
+enum JobPostingStatus {
+  ACTIVE
+  EXPIRED
+  HIDDEN
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -85,4 +91,29 @@ model PostTag {
   @@id([postId, tagId])
   @@index([tagId])
   @@map("post_tags")
+}
+
+model JobPosting {
+  id            String           @id @default(cuid())
+  source        String           @db.VarChar(80)
+  externalId    String           @db.VarChar(191)
+  title         String           @db.VarChar(200)
+  company       String           @db.VarChar(120)
+  location      String?          @db.VarChar(120)
+  experience    String?          @db.VarChar(120)
+  skills        Json?
+  description   String           @db.Text
+  url           String           @db.VarChar(500)
+  deadline      DateTime?
+  status        JobPostingStatus @default(ACTIVE)
+  embedding     Json?
+  lastFetchedAt DateTime         @default(now())
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([source, externalId])
+  @@index([status])
+  @@index([deadline])
+  @@index([lastFetchedAt])
+  @@map("job_postings")
 }
