@@ -1,11 +1,20 @@
 export type CreatePostBody = {
   content?: unknown;
+  tags?: unknown;
   title?: unknown;
 };
 
 export type UpdatePostBody = {
   content?: unknown;
+  tags?: unknown;
   title?: unknown;
+};
+
+export type ListPostsQuery = {
+  page?: unknown;
+  pageSize?: unknown;
+  q?: unknown;
+  tag?: unknown;
 };
 
 export function readPostTitle(value: unknown) {
@@ -44,4 +53,68 @@ export function readOptionalPostContent(value: unknown) {
   }
 
   return readPostContent(value);
+}
+
+export function readOptionalTagNames(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    return normalizeTagNames(value.split(","));
+  }
+
+  if (Array.isArray(value)) {
+    return normalizeTagNames(value);
+  }
+
+  throw new Error("tags는 문자열 배열 또는 쉼표로 구분된 문자열이어야 합니다.");
+}
+
+export function readPostsQuery(query: ListPostsQuery) {
+  const page = readPositiveNumber(query.page, 1);
+  const pageSize = Math.min(readPositiveNumber(query.pageSize, 10), 50);
+  const q = readOptionalQueryString(query.q);
+  const tag = readOptionalQueryString(query.tag);
+
+  return {
+    page,
+    pageSize,
+    q,
+    skip: (page - 1) * pageSize,
+    tag,
+  };
+}
+
+function normalizeTagNames(values: unknown[]) {
+  const tagNames = values
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  return [...new Set(tagNames)];
+}
+
+function readOptionalQueryString(value: unknown) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+
+  return trimmedValue.length > 0 ? trimmedValue : undefined;
+}
+
+function readPositiveNumber(value: unknown, defaultValue: number) {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
+    return defaultValue;
+  }
+
+  return parsedValue;
 }

@@ -4,14 +4,17 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { PrismaService } from "../database/prisma.service";
 import type { AuthUser } from "../auth/auth.types";
+import { PrismaService } from "../database/prisma.service";
 import {
   readOptionalPostContent,
   readOptionalPostTitle,
+  readOptionalTagNames,
   readPostContent,
+  readPostsQuery,
   readPostTitle,
   type CreatePostBody,
+  type ListPostsQuery,
   type UpdatePostBody,
 } from "./posts.dto";
 
@@ -26,6 +29,7 @@ export class PostsService {
         authorId: user.id,
         content: input.content,
         excerpt: this.buildExcerpt(input.content),
+        tags: this.buildTagCreateInput(input.tagNames),
         title: input.title,
       },
       select: this.postDetailSelect(),
@@ -36,17 +40,37 @@ export class PostsService {
     };
   }
 
-  async findAll() {
-    const posts = await this.prisma.post.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: this.postListSelect(),
-    });
+  async findAll(query: ListPostsQuery = {}) {
+    const input = readPostsQuery(query);
+    const where = this.buildPostWhereInput(input.q, input.tag);
+    const [posts, totalCount] = await Promise.all([
+      this.prisma.post.findMany({
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: this.postListSelect(),
+        skip: input.skip,
+        take: input.pageSize,
+        where,
+      }),
+      this.prisma.post.count({
+        where,
+      }),
+    ]);
 
     return {
+      page: input.page,
+      pageSize: input.pageSize,
       posts,
+      totalCount,
+      totalPages: Math.ceil(totalCount / input.pageSize),
     };
+  }
+
+  async findAllByTag(tag: string) {
+    return this.findAll({
+      tag,
+    });
   }
 
   async findOne(id: string) {
@@ -79,6 +103,14 @@ export class PostsService {
           : {
               content: input.content,
               excerpt: this.buildExcerpt(input.content),
+            }),
+        ...(input.tagNames === undefined
+          ? {}
+          : {
+              tags: {
+                deleteMany: {},
+                ...this.buildTagCreateInput(input.tagNames),
+              },
             }),
         ...(input.title === undefined
           ? {}
@@ -132,7 +164,7 @@ export class PostsService {
   }
 
   private assertPostAuthor(authorId: string, user: AuthUser) {
-    if (authorId !== user.id) {
+    if (authorId !== user.id && user.role !== "ADMIN") {
       throw new ForbiddenException("게시글 작성자만 수정하거나 삭제할 수 있습니다.");
     }
   }
@@ -141,6 +173,7 @@ export class PostsService {
     try {
       return {
         content: readPostContent(body.content),
+        tagNames: readOptionalTagNames(body.tags) ?? [],
         title: readPostTitle(body.title),
       };
     } catch (error) {
@@ -152,17 +185,71 @@ export class PostsService {
     try {
       const input = {
         content: readOptionalPostContent(body.content),
+        tagNames: readOptionalTagNames(body.tags),
         title: readOptionalPostTitle(body.title),
       };
 
-      if (input.content === undefined && input.title === undefined) {
-        throw new Error("수정할 title 또는 content 값이 필요합니다.");
+      if (input.content === undefined && input.tagNames === undefined && input.title === undefined) {
+        throw new Error("수정할 title, content 또는 tags 값이 필요합니다.");
       }
 
       return input;
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : "입력값을 확인해주세요.");
     }
+  }
+
+  private buildPostWhereInput(q?: string, tag?: string) {
+    return {
+      ...(q
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: q,
+                },
+              },
+              {
+                content: {
+                  contains: q,
+                },
+              },
+            ],
+          }
+        : {}),
+      ...(tag
+        ? {
+            tags: {
+              some: {
+                tag: {
+                  name: tag.toLowerCase(),
+                },
+              },
+            },
+          }
+        : {}),
+    };
+  }
+
+  private buildTagCreateInput(tagNames: string[]) {
+    if (tagNames.length === 0) {
+      return {};
+    }
+
+    return {
+      create: tagNames.map((name) => ({
+        tag: {
+          connectOrCreate: {
+            create: {
+              name,
+            },
+            where: {
+              name,
+            },
+          },
+        },
+      })),
+    };
   }
 
   private buildExcerpt(content: string) {
@@ -186,6 +273,16 @@ export class PostsService {
       createdAt: true,
       excerpt: true,
       id: true,
+      tags: {
+        select: {
+          tag: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
       title: true,
       updatedAt: true,
       viewCount: true,
@@ -206,10 +303,38 @@ export class PostsService {
           name: true,
         },
       },
+      comments: {
+        orderBy: {
+          createdAt: "asc" as const,
+        },
+        select: {
+          author: {
+            select: {
+              email: true,
+              id: true,
+              name: true,
+            },
+          },
+          content: true,
+          createdAt: true,
+          id: true,
+          updatedAt: true,
+        },
+      },
       content: true,
       createdAt: true,
       excerpt: true,
       id: true,
+      tags: {
+        select: {
+          tag: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
       title: true,
       updatedAt: true,
       viewCount: true,

@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
 import type { AuthUser } from "../auth/auth.types";
 import { CurrentUser } from "../auth/current-user.decorator";
-import type { CreatePostBody, UpdatePostBody } from "./posts.dto";
+import type { CreatePostBody, ListPostsQuery, UpdatePostBody } from "./posts.dto";
 import { PostsService } from "./posts.service";
 
 @Controller("posts")
@@ -16,8 +16,8 @@ export class PostsController {
   }
 
   @Get()
-  findAll() {
-    return this.postsService.findAll();
+  findAll(@Query() query: ListPostsQuery) {
+    return this.postsService.findAll(query);
   }
 
   @Get(":id")

@@ -272,6 +272,65 @@ cd nest-board-api/backend
 npm run build
 ```
 
+### #33 NestJS 댓글 태그 검색 페이징 API 구현
+
+이번 작업에서는 게시판 기본 요구사항 중 댓글, 태그, 검색, 페이징 API를 추가했습니다.
+
+추가한 역할:
+
+- `backend/src/comments/comments.module.ts`: 댓글 기능을 하나로 묶는 모듈입니다.
+- `backend/src/comments/comments.controller.ts`: `POST /posts/:postId/comments`, `DELETE /comments/:id` 요청을 받습니다.
+- `backend/src/comments/comments.service.ts`: 댓글 작성, 삭제, 권한 확인 로직을 처리합니다.
+- `backend/src/comments/comments.dto.ts`: 댓글 작성 요청 body를 검증합니다.
+- `backend/src/tags/tags.module.ts`: 태그 기능을 하나로 묶는 모듈입니다.
+- `backend/src/tags/tags.controller.ts`: `GET /tags`, `GET /tags/:name/posts` 요청을 받습니다.
+- `backend/src/tags/tags.service.ts`: 태그 목록과 태그별 게시글 조회를 처리합니다.
+- `backend/src/posts/posts.dto.ts`: `tags`, `q`, `tag`, `page`, `pageSize` 입력 처리를 추가했습니다.
+- `backend/src/posts/posts.service.ts`: 게시글 태그 연결, 검색, 태그 필터, 페이징을 추가했습니다.
+
+현재 추가/확장된 API:
+
+```text
+POST /posts/:postId/comments
+DELETE /comments/:id
+GET /tags
+GET /tags/:name/posts
+GET /posts?q=검색어&tag=태그&page=1&pageSize=10
+```
+
+게시글 생성/수정 시 태그 연결 예시:
+
+```json
+{
+  "title": "NestJS 게시글",
+  "content": "게시글 내용입니다.",
+  "tags": ["nestjs", "backend"]
+}
+```
+
+검색/태그/페이징 요청 예시:
+
+```text
+GET /posts?q=nestjs&tag=backend&page=1&pageSize=10
+```
+
+댓글 작성과 삭제는 로그인한 사용자만 사용할 수 있습니다.
+
+댓글 삭제 권한:
+
+```text
+댓글 작성자
+게시글 작성자
+ADMIN
+```
+
+검증한 명령:
+
+```bash
+cd nest-board-api/backend
+npm run build
+```
+
 ### #35 React 프론트엔드 프로젝트 초기 설정 및 화면 구조 설계
 
 이번 작업에서는 `frontend` 폴더에 Vite 기반 React 프로젝트 구조를 만들었습니다.
