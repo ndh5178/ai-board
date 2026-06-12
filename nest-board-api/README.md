@@ -209,6 +209,69 @@ cd nest-board-api/backend
 npm run build
 ```
 
+### #32 NestJS 게시글 CRUD API 구현
+
+이번 작업에서는 NestJS 백엔드에 게시글 CRUD API 구조를 추가했습니다.
+
+추가한 역할:
+
+- `backend/src/posts/posts.module.ts`: 게시글 기능을 하나로 묶는 모듈입니다.
+- `backend/src/posts/posts.controller.ts`: `POST /posts`, `GET /posts`, `GET /posts/:id`, `PATCH /posts/:id`, `DELETE /posts/:id` 요청을 받습니다.
+- `backend/src/posts/posts.service.ts`: 게시글 생성, 목록 조회, 상세 조회, 수정, 삭제 로직을 처리합니다.
+- `backend/src/posts/posts.dto.ts`: 게시글 생성/수정 요청 body를 읽고 기본 검증합니다.
+- `backend/src/app.module.ts`: `PostsModule`을 앱에 연결했습니다.
+
+현재 게시글 API:
+
+```text
+POST /posts
+GET /posts
+GET /posts/:id
+PATCH /posts/:id
+DELETE /posts/:id
+```
+
+게시글 생성 요청 예시:
+
+```json
+{
+  "title": "첫 번째 게시글",
+  "content": "게시글 내용입니다."
+}
+```
+
+게시글 생성, 수정, 삭제는 로그인한 사용자만 사용할 수 있습니다.
+
+보호 API 요청 흐름:
+
+```text
+React frontend
+-> Authorization: Bearer accessToken
+-> AuthGuard
+-> CurrentUser
+-> PostsController
+-> PostsService
+-> PrismaService
+-> MariaDB
+```
+
+작성자 권한 확인:
+
+```text
+PATCH /posts/:id
+DELETE /posts/:id
+-> 기존 게시글의 authorId 조회
+-> 로그인 사용자 id와 비교
+-> 작성자가 아니면 403 에러
+```
+
+검증한 명령:
+
+```bash
+cd nest-board-api/backend
+npm run build
+```
+
 ### #35 React 프론트엔드 프로젝트 초기 설정 및 화면 구조 설계
 
 이번 작업에서는 `frontend` 폴더에 Vite 기반 React 프로젝트 구조를 만들었습니다.
