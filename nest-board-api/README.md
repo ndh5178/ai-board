@@ -331,6 +331,128 @@ cd nest-board-api/backend
 npm run build
 ```
 
+### #34 NestJS API 문서화 및 Next.js 구현과 비교 정리
+
+이번 작업에서는 NestJS 백엔드 API 구조, 실행 명령, 주요 API 목록, Next.js API Route와의 차이를 정리했습니다.
+
+현재 백엔드 폴더 구조:
+
+```text
+backend/src/main.ts
+backend/src/app.module.ts
+backend/src/database
+backend/src/health
+backend/src/auth
+backend/src/posts
+backend/src/comments
+backend/src/tags
+backend/prisma/schema.prisma
+```
+
+NestJS 요청 처리 흐름:
+
+```text
+HTTP 요청
+-> Controller
+-> Service
+-> PrismaService
+-> MariaDB
+-> JSON 응답
+```
+
+예를 들어 게시글 생성 흐름은 다음과 같습니다.
+
+```text
+POST /posts
+-> PostsController.create()
+-> AuthGuard
+-> CurrentUser
+-> PostsService.create()
+-> PrismaService.post.create()
+-> MariaDB posts 테이블 저장
+```
+
+현재 주요 API:
+
+```text
+GET /health
+GET /health/db
+
+POST /auth/signup
+POST /auth/login
+GET /auth/me
+POST /auth/logout
+
+POST /posts
+GET /posts
+GET /posts/:id
+PATCH /posts/:id
+DELETE /posts/:id
+GET /posts?q=검색어&tag=태그&page=1&pageSize=10
+
+POST /posts/:postId/comments
+DELETE /comments/:id
+
+GET /tags
+GET /tags/:name/posts
+```
+
+백엔드 실행 명령:
+
+```bash
+cd nest-board-api/backend
+npm install
+npm run dev
+```
+
+백엔드 종료:
+
+```text
+서버가 실행 중인 터미널에서 Ctrl + C
+```
+
+DB 관련 명령:
+
+```bash
+cd nest-board-api/backend
+npm run db:generate
+npm run db:migrate
+npm run db:studio
+```
+
+Next.js API Route와 NestJS 구조 차이:
+
+```text
+Next.js API Route
+-> app/api/posts/route.ts 같은 파일 위치가 API 주소가 됨
+-> export async function GET, POST 같은 함수로 HTTP method 처리
+-> 작은 기능을 빠르게 만들기 좋음
+
+NestJS
+-> Controller가 요청을 받음
+-> Service가 실제 로직을 처리함
+-> Module이 기능 단위를 묶음
+-> 백엔드 API가 커질수록 역할 분리가 명확함
+```
+
+이번 NestJS 백엔드는 아래 기준으로 구현했습니다.
+
+```text
+Controller
+요청을 받는 입구
+
+Service
+비즈니스 로직 처리
+
+PrismaService
+DB 연결 담당
+
+Module
+관련 Controller와 Service를 묶는 단위
+```
+
+자세한 학습용 문서는 `md/ISSUE_34_NEST_API_DOCUMENTATION.md`에 정리했습니다.
+
 ### #35 React 프론트엔드 프로젝트 초기 설정 및 화면 구조 설계
 
 이번 작업에서는 `frontend` 폴더에 Vite 기반 React 프로젝트 구조를 만들었습니다.
