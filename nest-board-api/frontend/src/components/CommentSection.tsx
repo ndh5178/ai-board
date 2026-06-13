@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { usePosts } from "../posts/PostContext";
@@ -7,6 +8,60 @@ import type { PostSummary } from "../types/post";
 type CommentSectionProps = {
   post: PostSummary;
 };
+
+const AI_BOT_EMAILS = ["ai-job-bot@local", "ai-research-bot@local"];
+const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
+
+function renderCommentContent(content: string) {
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+
+  for (const match of content.matchAll(MARKDOWN_LINK_PATTERN)) {
+    const fullText = match[0];
+    const label = match[1];
+    const href = match[2];
+    const start = match.index ?? 0;
+
+    if (start > cursor) {
+      nodes.push(...renderPlainTextWithLinks(content.slice(cursor, start), nodes.length));
+    }
+
+    nodes.push(
+      <a className="comment__link" href={href} key={`markdown-link-${nodes.length}`} rel="noreferrer" target="_blank">
+        {label}
+      </a>,
+    );
+    cursor = start + fullText.length;
+  }
+
+  if (cursor < content.length) {
+    nodes.push(...renderPlainTextWithLinks(content.slice(cursor), nodes.length));
+  }
+
+  return nodes;
+}
+
+function renderPlainTextWithLinks(content: string, keyOffset: number) {
+  return content.split(URL_PATTERN).map((part, index) => {
+    if (!URL_PATTERN.test(part)) {
+      return part;
+    }
+
+    URL_PATTERN.lastIndex = 0;
+    const href = part.replace(/[),.]+$/, "");
+    const suffix = part.slice(href.length);
+
+    return (
+      <span key={`${href}-${index}`}>
+        <a className="comment__link" href={href} rel="noreferrer" target="_blank">
+          {href}
+        </a>
+        {suffix}
+      </span>
+    );
+  });
+}
 
 export function CommentSection({ post }: CommentSectionProps) {
   const { user } = useAuth();
@@ -108,11 +163,15 @@ export function CommentSection({ post }: CommentSectionProps) {
         {post.comments.length > 0 ? (
           post.comments.map((comment) => {
             const canRemove = comment.authorEmail === user?.email || post.authorEmail === user?.email;
+            const isAiComment = AI_BOT_EMAILS.includes(comment.authorEmail);
 
             return (
-              <article className="comment" key={comment.id}>
+              <article className={isAiComment ? "comment comment--ai" : "comment"} key={comment.id}>
                 <div className="comment__meta">
-                  <strong>{comment.authorName}</strong>
+                  <strong>
+                    {comment.authorName}
+                    {isAiComment ? <span className="comment__badge">AI</span> : null}
+                  </strong>
                   <span>{comment.createdAt}</span>
                 </div>
                 {editingCommentId === comment.id ? (
@@ -133,7 +192,7 @@ export function CommentSection({ post }: CommentSectionProps) {
                     </div>
                   </form>
                 ) : (
-                  <p className="comment__body">{comment.content}</p>
+                  <p className="comment__body">{renderCommentContent(comment.content)}</p>
                 )}
                 {canRemove && editingCommentId !== comment.id ? (
                   <div className="comment__actions">

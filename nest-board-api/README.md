@@ -742,6 +742,171 @@ cd nest-board-api/frontend
 npm run build
 ```
 
+## #45 AI Agent 자료 추천 댓글 구현
+
+이번 작업에서는 사용자가 게시글 상세 페이지에서 버튼을 눌러 AI 자료 추천 댓글을 생성하는 Agent 흐름을 추가했습니다.
+
+기존 채용공고 추천 흐름을 확장해서, Agent가 게시글 내용을 보고 필요한 MCP tool을 선택한 뒤 외부 API 결과를 RAG 점수로 정렬합니다.
+
+RAG 점수, 사용한 tool, 수집 개수 같은 내부 처리 정보는 사용자 댓글에 노출하지 않습니다. 댓글에는 사용자가 바로 볼 수 있는 자료 제목, 출처, 내용 요약, `원문 보기` 링크만 보여줍니다.
+
+지원하는 MCP tool:
+
+```text
+stackoverflow_search
+-> Stack Exchange API로 비슷한 Stack Overflow 질문을 찾습니다.
+
+github_repo_search
+-> GitHub Search API로 참고할 만한 저장소를 찾습니다.
+
+arxiv_paper_search
+-> arXiv API로 관련 논문을 찾습니다.
+
+weather_lookup
+-> Open-Meteo API로 주요 지역 날씨를 조회합니다.
+
+wikipedia_search
+open_library_search
+google_books_search
+crossref_search
+openalex_search
+semantic_scholar_search
+devto_search
+hackernews_search
+news_search
+nasa_apod_search
+tmdb_search
+openaq_lookup
+frankfurter_rates
+coingecko_search
+alpha_vantage_search
+naver_search
+```
+
+총 20개 research tool을 `backend/src/mcp/research-tool-registry.ts`에 등록했습니다.
+
+Agent는 게시글 자연어를 아래 기준으로 점수화하고 상위 3개 tool만 실행합니다.
+
+```text
+제목 keyword 매칭: +5
+태그 keyword 매칭: +4
+본문 keyword 매칭: +2
+tool 설명과 게시글 단어 겹침: 추가 점수
+매칭 keyword 개수: 소폭 추가 점수
+```
+
+API key가 필요한 tool은 `.env`에 key가 없으면 자동으로 후보에서 제외합니다.
+
+야구, 축구, 농구, 스포츠 같은 일반 주제는 Wikipedia, News, Naver 계열 tool에 점수가 붙도록 보정했습니다. 아무 tool도 선택되지 않으면 기본으로 Wikipedia, Open Library, Google Books를 사용합니다.
+
+추가한 역할:
+
+- `backend/src/mcp/research-results.ts`: 외부 API 결과의 공통 타입을 정의합니다.
+- `backend/src/mcp/research-tool-registry.ts`: 20개 tool 목록, 자연어 점수 계산, 상위 tool 선택을 관리합니다.
+- `backend/src/mcp/stackoverflow-search.ts`: Stack Overflow 질문 검색 tool입니다.
+- `backend/src/mcp/github-repo-search.ts`: GitHub 저장소 검색 tool입니다.
+- `backend/src/mcp/arxiv-paper-search.ts`: arXiv 논문 검색 tool입니다.
+- `backend/src/mcp/weather-lookup.ts`: Open-Meteo 날씨 조회 tool입니다.
+- `backend/src/mcp/mcp.service.ts`: `job_sync` 외에 4개 research tool 호출을 지원합니다.
+- `backend/src/ai/ai.controller.ts`: `POST /ai/posts/:postId/research-comment` 요청을 받습니다.
+- `backend/src/ai/ai.service.ts`: 게시글 분석, MCP tool 선택, 외부 API 호출, RAG 정렬, AI 댓글 저장을 처리합니다.
+- `frontend/src/posts/PostContext.tsx`: AI 자료 추천 댓글 생성 API를 호출하고 댓글 목록 상태를 갱신합니다.
+- `frontend/src/pages/PostDetailPage.tsx`: 게시글 상세 페이지에 AI 자료 추천 댓글 버튼을 추가했습니다.
+- `frontend/src/components/CommentSection.tsx`: AI 봇 댓글을 일반 댓글과 구분해서 표시합니다.
+
+AI 자료 추천 댓글 생성 흐름:
+
+```text
+게시글 상세 페이지
+-> AI 자료 추천 댓글 버튼 클릭
+-> POST /ai/posts/:postId/research-comment
+-> AuthGuard
+-> AiController
+-> AiService
+-> 게시글 제목, 본문, 태그 분석
+-> Agent가 MCP tool 선택
+-> McpService가 외부 API 호출
+-> 외부 결과와 게시글을 embedding
+-> cosine similarity로 RAG 정렬
+-> AI 자료 추천 봇 사용자 확인 또는 생성
+-> Comment 테이블에 AI 댓글 저장
+-> React 댓글 목록 갱신
+```
+
+AI 댓글 작성자:
+
+```text
+name: AI 자료 추천 봇
+email: ai-research-bot@local
+```
+
+중복 생성 방지:
+
+```text
+같은 게시글에 이미 ai-research-bot@local 또는 ai-job-bot@local 댓글이 있으면 새 댓글을 만들지 않고 기존 댓글을 반환합니다.
+```
+
+Agent는 외부 LLM 호출 대신 규칙 기반으로 tool을 선택합니다.
+
+나중에 상용 LLM을 붙일 때는 `backend/src/ai/ai.service.ts`의 `planTools()`와 댓글 본문 생성 부분을 LLM 호출로 교체하면 됩니다.
+
+검증한 명령:
+
+```bash
+cd nest-board-api/backend
+npm run build
+
+cd nest-board-api/frontend
+npm run build
+```
+
+## 내 글 스타일 분석 AI 구현
+
+이번 작업에서는 마이페이지에서 로그인 사용자의 게시글과 댓글을 분석하는 `내 글 스타일 분석` 기능을 추가했습니다.
+
+추가한 흐름:
+
+```text
+마이페이지
+-> 내 글 스타일 알아보기 버튼 클릭
+-> GET /ai/me/writing-style
+-> AuthGuard
+-> AiController
+-> AiService
+-> 로그인 사용자의 게시글/댓글 조회
+-> 자주 쓰는 단어, 관심 태그, 질문형 비율, 기술 키워드 비율 계산
+-> 마이페이지에 분석 리포트 표시
+```
+
+추가/수정한 역할:
+
+- `backend/src/ai/ai.controller.ts`: `GET /ai/me/writing-style` 요청을 받습니다.
+- `backend/src/ai/ai.service.ts`: 내 게시글과 댓글을 조회하고 글쓰기 스타일 리포트를 만듭니다.
+- `frontend/src/pages/MyPage.tsx`: 마이페이지에 분석 버튼과 결과 UI를 추가했습니다.
+- `frontend/src/styles.css`: 글 스타일 분석 카드와 반응형 레이아웃을 추가했습니다.
+
+분석 항목:
+
+```text
+스타일 요약
+분석한 글/댓글 수
+질문형 문장 비율
+기술 키워드 비율
+자주 쓰는 단어
+관심 태그
+다음 글을 더 좋게 쓰는 방법
+```
+
+검증한 명령:
+
+```bash
+cd nest-board-api/backend
+npm run build
+
+cd nest-board-api/frontend
+npm run build
+```
+
 ## #43 RAG 채용공고 임베딩 검색 구현
 
 이번 작업에서는 AI 채용공고 추천 댓글 기능의 RAG 기반 검색 구조를 추가했습니다.
@@ -795,9 +960,11 @@ npm run build
 
 ## #44 MCP 관리자 채용공고 업데이트 구현
 
-이번 작업에서는 관리자가 설정 페이지에서 채용공고 업데이트를 실행하면 MCP JSON-RPC 흐름으로 채용공고를 가져와 DB에 저장하는 1차 구조를 추가했습니다.
+이번 작업에서는 관리자가 설정 페이지에서 채용공고 업데이트를 실행하면 MCP JSON-RPC 흐름으로 채용공고를 가져와 DB에 저장하는 구조를 추가했습니다.
 
-1차 구현은 외부 API 대신 mock provider를 사용합니다.
+기본 provider는 `saramin`입니다. 사람인 공식 채용정보 API의 `access-key`가 있으면 실제 사람인 API를 호출하고, 키가 없으면 사람인 검색 링크 기반 fallback 데이터로 시연합니다.
+
+네트워크나 외부 API 문제에 대비해 `wanted`, `remoteok`, `mock` provider도 함께 유지합니다.
 
 추가한 역할:
 
@@ -807,6 +974,9 @@ npm run build
 - `backend/src/mcp/mcp.service.ts`: MCP JSON-RPC 요청을 해석하고 `job_sync` tool을 실행합니다.
 - `backend/src/mcp/mcp.dto.ts`: JSON-RPC 요청과 tool call 입력을 검증합니다.
 - `backend/src/mcp/mock-job-postings.ts`: 1차 구현용 mock 채용공고 데이터입니다.
+- `backend/src/mcp/saramin-job-postings.ts`: 사람인 채용정보 API 응답 또는 fallback 데이터를 `JobPosting` 형태로 변환합니다.
+- `backend/src/mcp/wanted-job-postings.ts`: 원티드 API 응답 또는 fallback 데이터를 `JobPosting` 형태로 변환합니다.
+- `backend/src/mcp/remoteok-job-postings.ts`: RemoteOK 공개 API에서 원격 채용공고를 가져와 `JobPosting` 형태로 변환합니다.
 - `backend/src/mcp/mcp.module.ts`: MCP 관련 Controller와 Service를 묶습니다.
 - `backend/src/rag/rag.service.ts`: 마감일이 지난 ACTIVE 공고를 EXPIRED로 바꾸는 함수를 추가했습니다.
 - `frontend/src/pages/SettingsPage.tsx`: 관리자에게만 채용공고 업데이트 버튼을 보여주고 MCP API를 호출합니다.
@@ -815,7 +985,16 @@ npm run build
 
 ```env
 ADMIN_EMAILS=admin@example.com
-JOB_PROVIDER=mock
+JOB_PROVIDER=saramin
+SARAMIN_ACCESS_KEY=
+SARAMIN_API_URL=https://oapi.saramin.co.kr/job-search
+SARAMIN_KEYWORDS=백엔드,프론트엔드,React,NestJS,TypeScript
+SARAMIN_SYNC_LIMIT=30
+WANTED_API_URL=
+WANTED_API_KEY=
+WANTED_SYNC_LIMIT=30
+REMOTEOK_API_URL=https://remoteok.com/api
+JOB_SYNC_LIMIT=30
 ```
 
 `ADMIN_EMAILS`에 들어간 이메일로 회원가입하면 해당 사용자는 `ADMIN` 권한을 받습니다.
@@ -846,7 +1025,7 @@ MCP 처리 흐름:
 -> AdminGuard
 -> McpController
 -> McpService
--> mock job provider
+-> saramin job provider
 -> RagService.upsertJobPosting()
 -> JobPosting 테이블 저장
 ```
@@ -854,10 +1033,19 @@ MCP 처리 흐름:
 현재 지원 provider:
 
 ```text
+saramin
+wanted
+remoteok
 mock
 ```
 
-나중에 실제 채용공고 API를 붙일 때는 `mock-job-postings.ts` 대신 외부 API provider를 추가하고 `JOB_PROVIDER=external` 흐름으로 확장합니다.
+`saramin`은 사람인 공식 채용정보 API의 `access-key`가 있으면 `https://oapi.saramin.co.kr/job-search`를 호출합니다. `SARAMIN_ACCESS_KEY`가 비어 있으면 무단 크롤링을 하지 않고 사람인 검색 링크 기반 fallback 데이터를 사용합니다.
+
+`wanted`는 원티드 공식/제휴 API URL이 있으면 `WANTED_API_URL`을 호출합니다. URL이 비어 있으면 무단 크롤링 대신 원티드 검색 링크 기반 fallback 데이터를 사용합니다.
+
+`remoteok`은 공개 원격 채용공고 API를 호출합니다.
+
+`mock`은 네트워크 연결 없이 기능 시연을 해야 할 때 사용하는 fallback provider입니다.
 
 검증한 명령:
 

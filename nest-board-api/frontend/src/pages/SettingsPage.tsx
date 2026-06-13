@@ -106,9 +106,7 @@ export function SettingsPage() {
         jsonrpc: "2.0",
         method: "tools/call",
         params: {
-          arguments: {
-            provider: "mock",
-          },
+          arguments: {},
           name: "job_sync",
         },
       },
@@ -132,7 +130,7 @@ export function SettingsPage() {
     }
 
     setJobSyncMessage(
-      `채용공고 ${result.data.result.syncedCount}개를 업데이트했습니다. ACTIVE ${result.data.result.activeCount}개, EXPIRED ${result.data.result.expiredCount}개`,
+      `채용공고 ${result.data.result.syncedCount}개를 업데이트했습니다. provider=${result.data.result.provider}, ACTIVE ${result.data.result.activeCount}개, EXPIRED ${result.data.result.expiredCount}개`,
     );
   };
 

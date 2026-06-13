@@ -6,6 +6,7 @@ import { McpService } from "./mcp.service";
 
 @Module({
   controllers: [McpController],
+  exports: [McpService],
   imports: [AuthModule, RagModule],
   providers: [McpService],
 })

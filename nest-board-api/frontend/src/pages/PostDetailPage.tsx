@@ -9,8 +9,9 @@ export function PostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { deletePost, fetchPostById, getPostById, posts } = usePosts();
+  const { deletePost, fetchPostById, generateResearchComment, getPostById, posts } = usePosts();
   const [message, setMessage] = useState("");
+  const [isGeneratingResearchComment, setIsGeneratingResearchComment] = useState(false);
   const post = getPostById(id);
 
   useEffect(() => {
@@ -62,6 +63,18 @@ export function PostDetailPage() {
 
     navigate("/posts", { replace: true });
   };
+  const handleGenerateResearchComment = async () => {
+    setIsGeneratingResearchComment(true);
+    const result = await generateResearchComment(post.id);
+    setIsGeneratingResearchComment(false);
+
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
+
+    setMessage("AI 자료 추천 댓글을 생성했습니다.");
+  };
 
   return (
     <main className="page post-detail-page">
@@ -88,6 +101,16 @@ export function PostDetailPage() {
             <Link className="button button--primary" to="/posts/new">
               새 글쓰기
             </Link>
+            {user ? (
+              <button
+                className="button button--secondary"
+                disabled={isGeneratingResearchComment}
+                onClick={() => void handleGenerateResearchComment()}
+                type="button"
+              >
+                {isGeneratingResearchComment ? "AI 댓글 생성 중" : "AI 자료 추천 댓글"}
+              </button>
+            ) : null}
             {isAuthor ? (
               <>
                 <Link className="button button--secondary" to={`/posts/${post.id}/edit`}>

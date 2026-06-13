@@ -27,6 +27,7 @@ type PostsContextValue = {
   deletePost: (id: string) => Promise<ApiResult<{ id: string; ok: true }>>;
   deletePostsByAuthor: (authorEmail: string) => void;
   fetchPostById: (id: string | undefined) => Promise<ApiResult<PostSummary>>;
+  generateResearchComment: (postId: string) => Promise<ApiResult<PostComment>>;
   getPostById: (id: string | undefined) => PostSummary | undefined;
   isLoading: boolean;
   loadPosts: (query?: PostsQuery) => Promise<ApiResult<ListPostsResponse>>;
@@ -61,6 +62,11 @@ type PostResponse = {
 
 type CommentResponse = {
   comment: ApiComment;
+};
+
+type ResearchCommentResponse = CommentResponse & {
+  created: boolean;
+  message?: string;
 };
 
 type TagsResponse = {
@@ -292,6 +298,39 @@ export function PostsProvider({ children }: { children: ReactNode }) {
 
           return {
             data: post,
+            ok: true,
+          };
+        }
+
+        return result;
+      },
+      generateResearchComment: async (postId) => {
+        const result = await apiRequest<ResearchCommentResponse>(`/ai/posts/${postId}/research-comment`, {
+          auth: true,
+          method: "POST",
+        });
+
+        if (result.ok) {
+          const comment = toPostComment(result.data.comment);
+
+          setPosts((currentPosts) =>
+            currentPosts.map((post) => {
+              if (post.id !== postId) {
+                return post;
+              }
+
+              const exists = post.comments.some((currentComment) => currentComment.id === comment.id);
+
+              return {
+                ...post,
+                commentCount: exists || !result.data.created ? post.commentCount : post.commentCount + 1,
+                comments: exists ? post.comments : [...post.comments, comment],
+              };
+            }),
+          );
+
+          return {
+            data: comment,
             ok: true,
           };
         }

@@ -1,8 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import type { JobPosting } from "@prisma/client";
 import { RagService } from "../rag/rag.service";
-import { readJobSyncArguments, readJsonRpcRequest, readToolCallParams, type JsonRpcId, type JsonRpcRequest } from "./mcp.dto";
+import {
+  readJobSyncArguments,
+  readJsonRpcRequest,
+  readResearchToolArguments,
+  readToolCallParams,
+  type JsonRpcId,
+  type JsonRpcRequest,
+} from "./mcp.dto";
 import { listMockJobPostings } from "./mock-job-postings";
+import { fetchRemoteOkJobPostings } from "./remoteok-job-postings";
+import { getResearchTool, isResearchToolName } from "./research-tool-registry";
+import { fetchSaraminJobPostings } from "./saramin-job-postings";
+import { fetchWantedJobPostings } from "./wanted-job-postings";
 
 @Injectable()
 export class McpService {
@@ -22,11 +33,7 @@ export class McpService {
 
       const params = readToolCallParams(request.params);
 
-      if (params.name !== "job_sync") {
-        return this.errorResponse(request.id, -32601, "지원하지 않는 MCP tool입니다.");
-      }
-
-      const result = await this.syncJobPostings(params.arguments);
+      const result = await this.callTool(params.name, params.arguments);
 
       return {
         id: request.id,
@@ -42,15 +49,34 @@ export class McpService {
     }
   }
 
+  async callTool(name: string, value: unknown) {
+    if (name === "job_sync") {
+      return this.syncJobPostings(value);
+    }
+
+    return this.callResearchTool(name, value);
+  }
+
+  async callResearchTool(name: string, value: unknown) {
+    if (!isResearchToolName(name)) {
+      throw new Error(`지원하지 않는 MCP tool입니다: ${name}`);
+    }
+
+    const args = readResearchToolArguments(value);
+    const tool = getResearchTool(name);
+
+    if (!tool) {
+      throw new Error(`지원하지 않는 MCP tool입니다: ${name}`);
+    }
+
+    return tool.run(args.query, args.limit, args.location);
+  }
+
   private async syncJobPostings(value: unknown) {
     const args = readJobSyncArguments(value);
     const provider = args.provider ?? process.env.JOB_PROVIDER ?? "mock";
 
-    if (provider !== "mock") {
-      throw new Error("현재 1차 구현에서는 mock 채용공고 provider만 지원합니다.");
-    }
-
-    const jobPostings = listMockJobPostings();
+    const jobPostings = await this.fetchJobPostings(provider);
     const savedJobPostings: JobPosting[] = [];
 
     for (const jobPosting of jobPostings) {
@@ -69,6 +95,26 @@ export class McpService {
       syncedCount: savedJobPostings.length,
       tool: "job_sync",
     };
+  }
+
+  private async fetchJobPostings(provider: string) {
+    if (provider === "mock") {
+      return listMockJobPostings();
+    }
+
+    if (provider === "remoteok") {
+      return fetchRemoteOkJobPostings();
+    }
+
+    if (provider === "saramin") {
+      return fetchSaraminJobPostings();
+    }
+
+    if (provider === "wanted") {
+      return fetchWantedJobPostings();
+    }
+
+    throw new Error(`지원하지 않는 채용공고 provider입니다: ${provider}`);
   }
 
   private readRequestSafely(body: JsonRpcRequest) {
