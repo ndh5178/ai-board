@@ -106,7 +106,6 @@ model JobPosting {
   url           String           @db.VarChar(500)
   deadline      DateTime?
   status        JobPostingStatus @default(ACTIVE)
-  embedding     Json?
   lastFetchedAt DateTime         @default(now())
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -117,3 +116,4 @@ model JobPosting {
   @@index([lastFetchedAt])
   @@map("job_postings")
 }
+

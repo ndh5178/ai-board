@@ -1,84 +1,116 @@
-import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { BackendStatus } from "../components/BackendStatus";
 import { ButtonLink } from "../components/ButtonLink";
-import { PostList } from "../components/PostList";
 import { usePosts } from "../posts/PostContext";
 
-const dealItems = [
-  { title: "NestJS API 서버", place: "Backend", rate: "API", price: "Controller -> Service -> DB" },
-  { title: "React 프론트엔드", place: "Frontend", rate: "UI", price: "Page -> Component -> API" },
-  { title: "AI 확장 기능", place: "AI", rate: "RAG", price: "RAG / MCP / Agent" },
+const emptyCards = [
+  {
+    description: "회원이 작성한 커리어 고민, 채용 정보, 학습 기록이 주요채용 카드처럼 노출됩니다.",
+    title: "첫 게시글을 등록해 보세요",
+  },
+  {
+    description: "태그를 입력하면 검색과 추천 영역에서 더 쉽게 발견됩니다.",
+    title: "태그 기반 탐색 준비 완료",
+  },
+  {
+    description: "로그인 후 글을 작성하면 댓글과 마이페이지 기능까지 함께 연결됩니다.",
+    title: "게시판 API 연결 대기 중",
+  },
+  {
+    description: "백엔드와 DB를 실행하면 실제 게시글 데이터가 이 영역에 바로 표시됩니다.",
+    title: "실시간 데이터 반영",
+  },
 ];
 
 export function HomePage() {
-  const { popularTags, posts } = usePosts();
-  const heroItems = posts.slice(0, 3);
+  const { posts, totalCount } = usePosts();
+  const primaryPosts = posts.slice(0, 12);
 
   return (
-    <main className="ticket-page">
-      <section className="ticket-hero">
-        <div className="ticket-hero__copy">
-          <p className="eyebrow">NEST BOARD ORIGINAL</p>
-          <h1>Nest 게시판 랭킹 오픈</h1>
-          <p>NestJS 백엔드와 React 프론트엔드를 분리해 게시판 전체 흐름을 다시 구현합니다.</p>
-          <div className="hero__actions">
-            <ButtonLink to="/posts/new">글쓰기</ButtonLink>
+    <main className="saramin-main">
+      <section aria-labelledby="h-primary-products" id="section_banner" className="main_product">
+        <div className="main_product__header">
+          <div>
+            <div className="main_product__title-row">
+              <h2 id="h-primary-products">
+                게시글
+              </h2>
+            </div>
+          </div>
+          <div className="main_product__actions">
+            <span>전체 {totalCount}개</span>
             <ButtonLink to="/posts" variant="secondary">
-              게시글 보기
+              전체보기
             </ButtonLink>
           </div>
         </div>
-        <div className="ticket-hero__posters" aria-label="추천 게시글">
-          {heroItems.map((post, index) => (
-            <article
-              className="poster-card"
-              key={post.id}
-              style={{ "--poster-accent": post.accent } as CSSProperties}
-            >
-              <span className="poster-card__rank">{index + 1}</span>
-              <strong>{post.title}</strong>
-              <small>{post.authorName}</small>
-            </article>
-          ))}
-        </div>
-      </section>
 
-      <section className="genre-strip" aria-label="태그 바로가기">
-        {popularTags.slice(0, 8).map((tag) => (
-          <Link key={tag} to={`/posts?tag=${encodeURIComponent(tag)}`}>
-            {tag}
-          </Link>
-        ))}
-      </section>
-
-      <BackendStatus />
-
-      <section className="section">
-        <div className="section__header">
-          <h2>게시글 랭킹</h2>
-          <ButtonLink to="/posts" variant="secondary">
-            전체보기
-          </ButtonLink>
-        </div>
-        <PostList posts={posts} />
-      </section>
-
-      <section className="section">
-        <div className="section__header">
-          <h2>구현 예정 영역</h2>
-          <span className="section__badge">Roadmap</span>
-        </div>
-        <div className="deal-grid">
-          {dealItems.map((item) => (
-            <article className="deal-card" key={item.title}>
-              <div className="deal-card__thumb">{item.rate}</div>
-              <strong>{item.title}</strong>
-              <span>{item.place}</span>
-              <p>{item.price}</p>
-            </article>
-          ))}
-        </div>
+        {primaryPosts.length > 0 ? (
+          <div className="product-grid">
+            {primaryPosts.map((post) => (
+              <article className="product-card" key={post.id}>
+                <div className="product-card__surface">
+                  <Link className="product-card__link" to={`/posts/${post.id}`}>
+                    <strong className="product-card__company">{post.authorName}</strong>
+                    <h3>{post.title}</h3>
+                    <div className="product-card__details">
+                      <p>{post.excerpt}</p>
+                    </div>
+                  </Link>
+                  <div className="product-card__footer">
+                    <div className="product-card__tags">
+                      {post.tags.slice(0, 3).map((tag) => (
+                        <Link key={tag} to={`/posts?tag=${encodeURIComponent(tag)}`}>
+                          {tag}
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="product-card__meta">
+                      <span>댓글 {post.commentCount}</span>
+                      <span>{post.createdAt}</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="product-grid product-grid--empty">
+            {emptyCards.map((card) => (
+              <article className="product-card product-card--empty" key={card.title}>
+                <div className="product-card__surface">
+                  <div className="product-card__top">
+                    <span className="product-card__badge">커리어보드</span>
+                    <span className="product-card__deadline">Ready</span>
+                  </div>
+                  <strong className="product-card__company">게시글 준비 영역</strong>
+                  <h3>{card.title}</h3>
+                  <div className="product-card__details">
+                    <p>{card.description}</p>
+                    <div className="product-card__condition">
+                      <span>API 연결형</span>
+                      <span>반응형 카드</span>
+                      <span>배포 준비</span>
+                    </div>
+                    <div className="product-card__meta">
+                      <span>API 연결형</span>
+                      <span>배포 준비</span>
+                    </div>
+                  </div>
+                  <div className="product-card__footer">
+                    <div className="product-card__tags">
+                      <span>준비됨</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+            <div className="product-empty-cta">
+              <strong>실제 데이터로 채워보고 싶다면</strong>
+              <p>백엔드와 DB를 실행한 뒤 게시글을 작성하면 이 영역이 실제 게시글 카드로 바뀝니다.</p>
+              <ButtonLink to="/posts/new">첫 글 작성하기</ButtonLink>
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );

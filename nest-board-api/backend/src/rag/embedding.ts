@@ -1,17 +1,42 @@
-const EMBEDDING_DIMENSION = 64;
+const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
+const DEFAULT_OPENAI_EMBEDDING_API_URL = "https://api.openai.com/v1/embeddings";
 
 export type EmbeddingVector = number[];
 
-export function createEmbedding(text: string): EmbeddingVector {
-  const vector = Array.from({ length: EMBEDDING_DIMENSION }, () => 0);
-  const tokens = tokenize(text);
+type OpenAiEmbeddingResponse = {
+  data?: Array<{
+    embedding?: unknown;
+  }>;
+  error?: {
+    message?: string;
+  };
+};
 
-  for (const token of tokens) {
-    const index = hashToken(token) % EMBEDDING_DIMENSION;
-    vector[index] += 1;
+export async function createEmbedding(text: string): Promise<EmbeddingVector> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY 환경변수가 설정되어 있지 않습니다.");
   }
 
-  return normalizeVector(vector);
+  const response = await fetch(process.env.OPENAI_EMBEDDING_API_URL ?? DEFAULT_OPENAI_EMBEDDING_API_URL, {
+    body: JSON.stringify({
+      input: text,
+      model: process.env.OPENAI_EMBEDDING_MODEL ?? DEFAULT_OPENAI_EMBEDDING_MODEL,
+    }),
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const payload = (await response.json().catch(() => ({}))) as OpenAiEmbeddingResponse;
+
+  if (!response.ok) {
+    throw new Error(payload.error?.message ?? `OpenAI 임베딩 요청에 실패했습니다. (${response.status})`);
+  }
+
+  return readEmbedding(payload.data?.[0]?.embedding);
 }
 
 export function cosineSimilarity(left: EmbeddingVector, right: EmbeddingVector) {
@@ -39,33 +64,4 @@ export function readEmbedding(value: unknown): EmbeddingVector {
   }
 
   return value.filter((item): item is number => typeof item === "number" && Number.isFinite(item));
-}
-
-function tokenize(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}+#.]+/gu, " ")
-    .split(" ")
-    .map((token) => token.trim())
-    .filter((token) => token.length > 1);
-}
-
-function hashToken(token: string) {
-  let hash = 0;
-
-  for (let index = 0; index < token.length; index += 1) {
-    hash = (hash * 31 + token.charCodeAt(index)) >>> 0;
-  }
-
-  return hash;
-}
-
-function normalizeVector(vector: EmbeddingVector) {
-  const size = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0));
-
-  if (size === 0) {
-    return vector;
-  }
-
-  return vector.map((value) => Number((value / size).toFixed(6)));
 }

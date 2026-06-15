@@ -4,8 +4,10 @@
   "version": "0.1.0",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "chroma": "chroma run --path ./chroma-data",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:seed:demo": "node prisma/seed-demo-data.mjs",
     "db:studio": "prisma studio",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
@@ -17,6 +19,7 @@
     "@nestjs/platform-express": "^11.0.0",
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "chromadb": "^3.4.3",
     "dotenv": "^17.4.2",
     "mariadb": "^3.5.3",
     "reflect-metadata": "^0.2.0",

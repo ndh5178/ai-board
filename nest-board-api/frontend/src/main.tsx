@@ -5,6 +5,7 @@ import { App } from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import { PostsProvider } from "./posts/PostContext";
 import "./styles.css";
+import "./saramin.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

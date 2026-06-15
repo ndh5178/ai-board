@@ -1,17 +1,16 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import { CommentSection } from "../components/CommentSection";
 import { PageShell } from "../components/PageShell";
-import { useAuth } from "../auth/AuthContext";
 import { usePosts } from "../posts/PostContext";
 
 export function PostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { deletePost, fetchPostById, generateResearchComment, getPostById, posts } = usePosts();
+  const { deletePost, fetchPostById, getPostById, posts } = usePosts();
   const [message, setMessage] = useState("");
-  const [isGeneratingResearchComment, setIsGeneratingResearchComment] = useState(false);
   const post = getPostById(id);
 
   useEffect(() => {
@@ -47,6 +46,7 @@ export function PostDetailPage() {
   const postIndex = posts.findIndex((item) => item.id === post.id);
   const previousPost = postIndex >= 0 ? posts[postIndex + 1] : undefined;
   const nextPost = postIndex > 0 ? posts[postIndex - 1] : undefined;
+
   const handleDelete = async () => {
     const confirmed = window.confirm("게시글을 삭제할까요?");
 
@@ -62,18 +62,6 @@ export function PostDetailPage() {
     }
 
     navigate("/posts", { replace: true });
-  };
-  const handleGenerateResearchComment = async () => {
-    setIsGeneratingResearchComment(true);
-    const result = await generateResearchComment(post.id);
-    setIsGeneratingResearchComment(false);
-
-    if (!result.ok) {
-      setMessage(result.message);
-      return;
-    }
-
-    setMessage("AI 자료 추천 댓글을 생성했습니다.");
   };
 
   return (
@@ -101,16 +89,6 @@ export function PostDetailPage() {
             <Link className="button button--primary" to="/posts/new">
               새 글쓰기
             </Link>
-            {user ? (
-              <button
-                className="button button--secondary"
-                disabled={isGeneratingResearchComment}
-                onClick={() => void handleGenerateResearchComment()}
-                type="button"
-              >
-                {isGeneratingResearchComment ? "AI 댓글 생성 중" : "AI 자료 추천 댓글"}
-              </button>
-            ) : null}
             {isAuthor ? (
               <>
                 <Link className="button button--secondary" to={`/posts/${post.id}/edit`}>

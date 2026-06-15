@@ -46,10 +46,10 @@ export function PostsPage() {
   return (
     <PageShell
       actions={<ButtonLink to="/posts/new">글쓰기</ButtonLink>}
-      description={`NestJS API에 저장된 게시글 ${totalCount}개를 검색하고 태그로 탐색합니다.`}
-      eyebrow="Posts"
+      description={`저장된 게시글 ${totalCount}개를 검색하고 태그로 탐색합니다.`}
+      eyebrow="채용정보"
       title="게시글 목록"
-      >
+    >
       {message ? <p className="form-message">{message}</p> : null}
       <section className="toolbar">
         <form
@@ -57,7 +57,7 @@ export function PostsPage() {
           onSubmit={(event) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
-            const nextQuery = String(formData.get("q") ?? "");
+            const nextQuery = String(formData.get("q") ?? "").trim();
             const nextParams = new URLSearchParams();
 
             if (nextQuery) {
@@ -71,7 +71,7 @@ export function PostsPage() {
             setSearchParams(nextParams);
           }}
         >
-          <input defaultValue={query} name="q" placeholder="검색어를 입력하세요" />
+          <input defaultValue={query} name="q" placeholder="검색어를 입력해 주세요" />
           <button className="button button--primary">검색</button>
         </form>
         <div className="tag-row">

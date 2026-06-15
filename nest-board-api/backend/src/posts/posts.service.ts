@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import type { AuthUser } from "../auth/auth.types";
 import { PrismaService } from "../database/prisma.service";
+import { RagService } from "../rag/rag.service";
 import {
   readOptionalPostContent,
   readOptionalPostTitle,
@@ -20,7 +21,10 @@ import {
 
 @Injectable()
 export class PostsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ragService: RagService,
+  ) {}
 
   async create(body: CreatePostBody, user: AuthUser) {
     const input = this.readCreateInput(body);
@@ -34,6 +38,8 @@ export class PostsService {
       },
       select: this.postDetailSelect(),
     });
+
+    await this.ragService.upsertPostVector(post);
 
     return {
       post,
@@ -124,6 +130,8 @@ export class PostsService {
       select: this.postDetailSelect(),
     });
 
+    await this.ragService.upsertPostVector(post);
+
     return {
       post,
     };
@@ -139,6 +147,7 @@ export class PostsService {
         id,
       },
     });
+    await this.ragService.deletePostVector(id);
 
     return {
       id,
@@ -273,6 +282,7 @@ export class PostsService {
       createdAt: true,
       excerpt: true,
       id: true,
+      status: true,
       tags: {
         select: {
           tag: {
@@ -325,6 +335,7 @@ export class PostsService {
       createdAt: true,
       excerpt: true,
       id: true,
+      status: true,
       tags: {
         select: {
           tag: {

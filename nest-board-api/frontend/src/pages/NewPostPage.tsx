@@ -7,7 +7,7 @@ export function NewPostPage() {
 
   return (
     <PageShell
-      description={`${user?.name}님, 지금은 localStorage 임시 저장소에 게시글을 저장하고 다음 단계에서 NestJS API로 교체합니다.`}
+      description={`${user?.name}님, 왼쪽에서 작성하면 오른쪽에서 상세페이지 미리보기를 확인할 수 있습니다.`}
       eyebrow="Write"
       title="게시글 작성"
     >

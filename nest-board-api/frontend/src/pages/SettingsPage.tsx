@@ -1,26 +1,9 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageShell } from "../components/PageShell";
-import { useAuth } from "../auth/AuthContext";
-import { usePosts } from "../posts/PostContext";
 import { apiRequest } from "../api/client";
-
-type JobSyncResponse = {
-  error?: {
-    code: number;
-    message: string;
-  };
-  id: string;
-  jsonrpc: "2.0";
-  result?: {
-    activeCount: number;
-    expiredCount: number;
-    expiredUpdatedCount: number;
-    provider: string;
-    syncedCount: number;
-    tool: "job_sync";
-  };
-};
+import { useAuth } from "../auth/AuthContext";
+import { PageShell } from "../components/PageShell";
+import { usePosts } from "../posts/PostContext";
 
 export function SettingsPage() {
   const { changePassword, deleteAccountFromServer, user } = useAuth();
@@ -99,19 +82,18 @@ export function SettingsPage() {
 
   const handleJobPostingSync = async () => {
     setIsJobSyncSubmitting(true);
-    const result = await apiRequest<JobSyncResponse>("/mcp/json-rpc", {
+    setJobSyncMessage("");
+
+    const result = await apiRequest<{
+      fetchedCount: number;
+      indexedCount: number;
+      savedCount: number;
+      source: string;
+    }>("/job-postings/saramin/sync", {
       auth: true,
-      body: {
-        id: "job-sync",
-        jsonrpc: "2.0",
-        method: "tools/call",
-        params: {
-          arguments: {},
-          name: "job_sync",
-        },
-      },
       method: "POST",
     });
+
     setIsJobSyncSubmitting(false);
 
     if (!result.ok) {
@@ -119,18 +101,8 @@ export function SettingsPage() {
       return;
     }
 
-    if (result.data.error) {
-      setJobSyncMessage(result.data.error.message);
-      return;
-    }
-
-    if (!result.data.result) {
-      setJobSyncMessage("채용공고 업데이트 결과를 확인할 수 없습니다.");
-      return;
-    }
-
     setJobSyncMessage(
-      `채용공고 ${result.data.result.syncedCount}개를 업데이트했습니다. provider=${result.data.result.provider}, ACTIVE ${result.data.result.activeCount}개, EXPIRED ${result.data.result.expiredCount}개`,
+      `사람인 공고 ${result.data.savedCount}개 저장, ${result.data.indexedCount}개 임베딩 완료`,
     );
   };
 
@@ -142,19 +114,26 @@ export function SettingsPage() {
         <p>이메일: {user?.email}</p>
         <p>권한: {user?.role}</p>
       </section>
-      <section className="settings-grid" aria-label="계정 설정">
-        {user?.role === "ADMIN" ? (
+      {user?.role === "ADMIN" ? (
+        <section className="settings-grid" aria-label="관리자 설정">
           <article className="settings-panel">
             <div>
               <h2>채용공고 업데이트</h2>
-              <p>관리자 권한으로 MCP job_sync 도구를 호출해 채용공고 데이터를 갱신합니다.</p>
+              <p>사람인 API에서 서울 개발자 신입/경력 공고를 가져와 DB와 ChromaDB에 저장합니다.</p>
             </div>
             {jobSyncMessage ? <p className="form-message">{jobSyncMessage}</p> : null}
-            <button className="button button--primary" disabled={isJobSyncSubmitting} onClick={handleJobPostingSync}>
-              {isJobSyncSubmitting ? "업데이트 중" : "채용공고 업데이트"}
+            <button
+              className="button button--primary"
+              disabled={isJobSyncSubmitting}
+              onClick={handleJobPostingSync}
+              type="button"
+            >
+              {isJobSyncSubmitting ? "업데이트 중" : "사람인 공고 업데이트"}
             </button>
           </article>
-        ) : null}
+        </section>
+      ) : null}
+      <section className="settings-grid" aria-label="계정 설정">
         <article className="settings-panel">
           <div>
             <h2>비밀번호 변경</h2>

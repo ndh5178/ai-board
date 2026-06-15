@@ -9,7 +9,6 @@ type CommentSectionProps = {
   post: PostSummary;
 };
 
-const AI_BOT_EMAILS = ["ai-job-bot@local", "ai-research-bot@local"];
 const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
@@ -44,6 +43,8 @@ function renderCommentContent(content: string) {
 
 function renderPlainTextWithLinks(content: string, keyOffset: number) {
   return content.split(URL_PATTERN).map((part, index) => {
+    URL_PATTERN.lastIndex = 0;
+
     if (!URL_PATTERN.test(part)) {
       return part;
     }
@@ -53,7 +54,7 @@ function renderPlainTextWithLinks(content: string, keyOffset: number) {
     const suffix = part.slice(href.length);
 
     return (
-      <span key={`${href}-${index}`}>
+      <span key={`${href}-${keyOffset}-${index}`}>
         <a className="comment__link" href={href} rel="noreferrer" target="_blank">
           {href}
         </a>
@@ -103,6 +104,7 @@ export function CommentSection({ post }: CommentSectionProps) {
     setMessage("");
     form.reset();
   };
+
   const handleEdit = async (event: FormEvent<HTMLFormElement>, commentId: string) => {
     event.preventDefault();
 
@@ -143,7 +145,7 @@ export function CommentSection({ post }: CommentSectionProps) {
         <form className="comment-form" onSubmit={handleSubmit}>
           <label>
             댓글 내용
-            <textarea name="content" placeholder="댓글을 입력하세요" rows={4} />
+            <textarea name="content" placeholder="댓글을 입력하세요." rows={4} />
           </label>
           {message ? <p className="form-message">{message}</p> : null}
           <button className="button button--primary" disabled={isSubmitting}>
@@ -158,20 +160,15 @@ export function CommentSection({ post }: CommentSectionProps) {
           </Link>
         </div>
       )}
-      {message && !user ? <p className="form-message">{message}</p> : null}
       <div className="comments">
         {post.comments.length > 0 ? (
           post.comments.map((comment) => {
             const canRemove = comment.authorEmail === user?.email || post.authorEmail === user?.email;
-            const isAiComment = AI_BOT_EMAILS.includes(comment.authorEmail);
 
             return (
-              <article className={isAiComment ? "comment comment--ai" : "comment"} key={comment.id}>
+              <article className="comment" key={comment.id}>
                 <div className="comment__meta">
-                  <strong>
-                    {comment.authorName}
-                    {isAiComment ? <span className="comment__badge">AI</span> : null}
-                  </strong>
+                  <strong>{comment.authorName}</strong>
                   <span>{comment.createdAt}</span>
                 </div>
                 {editingCommentId === comment.id ? (

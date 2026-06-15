@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import type { CSSProperties } from "react";
 import type { PostSummary } from "../types/post";
 
 type PostCardProps = {
@@ -10,9 +9,9 @@ type PostCardProps = {
 export function PostCard({ post, rank }: PostCardProps) {
   return (
     <article className="post-card">
-      <div className="post-card__poster" style={{ "--poster-accent": post.accent } as CSSProperties}>
-        {rank ? <span className="post-card__rank">{rank}</span> : null}
-        <span>API</span>
+      <div className="post-card__badge">
+        {rank ? <span>{rank}</span> : null}
+        <strong>Pick</strong>
       </div>
       <div className="post-card__body">
         <Link to={`/posts/${post.id}`}>

@@ -38,26 +38,29 @@ export function BackendStatus() {
     };
   }, []);
 
+  const statusText = {
+    checking: "확인 중",
+    offline: "준비 중",
+    online: "연결 완료",
+  }[backendState.status];
+
   return (
-    <section className="api-status">
+    <section className="api-status" aria-label="서비스 연결 상태">
       <div>
-        <p className="eyebrow">API Connection</p>
-        <h2>NestJS 백엔드 연결 상태</h2>
+        <p className="eyebrow">SERVICE STATUS</p>
+        <h2>커리어보드 서비스 상태</h2>
         <p>
-          React 프론트엔드는 <strong>{API_BASE_URL}</strong> 주소의 NestJS API를 호출하도록 준비되어 있습니다.
+          게시글, 댓글, 로그인 기능은 <strong>{API_BASE_URL}</strong> API와 연결됩니다.
+          백엔드가 실행 중이면 실시간 데이터가 이 화면에 반영됩니다.
         </p>
       </div>
-      <div className={`api-status__badge api-status__badge--${backendState.status}`}>
-        {backendState.status === "checking" ? "확인 중" : null}
-        {backendState.status === "offline" ? "연결 대기" : null}
-        {backendState.status === "online" ? "연결 완료" : null}
-      </div>
+      <div className={`api-status__badge api-status__badge--${backendState.status}`}>{statusText}</div>
       {backendState.status === "online" ? (
         <p className="api-status__message">{backendState.data.message}</p>
       ) : null}
       {backendState.status === "offline" ? (
         <p className="api-status__message">
-          {backendState.message} 백엔드 #29 작업 이후 `/health` API를 만들면 이 영역이 연결 완료로 바뀝니다.
+          지금은 프론트 화면만 확인 중입니다. 데이터 연동까지 확인하려면 MariaDB와 NestJS 백엔드를 함께 실행해 주세요.
         </p>
       ) : null}
     </section>

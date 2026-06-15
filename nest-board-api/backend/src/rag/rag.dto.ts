@@ -1,13 +1,13 @@
-export type SearchJobPostingsQuery = {
+export type SearchPostsQuery = {
   limit?: unknown;
   q?: unknown;
 };
 
-export function readSearchJobPostingsQuery(query: SearchJobPostingsQuery = {}) {
+export function readSearchPostsQuery(query: SearchPostsQuery = {}) {
   const q = typeof query.q === "string" ? query.q.trim() : "";
 
   if (!q) {
-    throw new Error("검색할 q 값이 필요합니다.");
+    throw new Error("검색어 q 값이 필요합니다.");
   }
 
   return {

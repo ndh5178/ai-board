@@ -742,6 +742,255 @@ cd nest-board-api/frontend
 npm run build
 ```
 
+## 이전 결정 기록: 채용공고 기능 제거와 게시글 RAG 전환
+
+이 문단은 이전 개편 과정에서 채용공고 기능을 잠시 제거했을 때의 기록입니다.
+현재 기준은 문서 맨 아래의 `ChromaDB 2개 컬렉션과 사람인 공고 업데이트` 섹션을 따릅니다.
+
+당시에는 채용공고 추천 기능을 사용하지 않기로 했습니다.
+
+따라서 현재 코드 기준에서는 다음 기능이 제거되었습니다.
+
+- `JobPosting` Prisma model
+- `job_postings` MariaDB table
+- MCP `job_sync` tool
+- 사람인, 원티드, RemoteOK 채용공고 수집 코드
+- 설정 페이지의 관리자 채용공고 업데이트 버튼
+
+대신 ChromaDB는 게시글 RAG 검색 용도로 사용합니다.
+
+```text
+게시글 생성/수정
+-> MariaDB posts 테이블에 원문 저장
+-> ChromaDB board_posts collection에 게시글 임베딩 저장
+
+게시글 삭제
+-> MariaDB posts 테이블에서 삭제
+-> ChromaDB board_posts collection에서도 같은 id 삭제
+
+게시글 RAG 검색
+-> GET /rag/posts/search?q=검색어
+-> ChromaDB에서 비슷한 게시글 id 검색
+-> MariaDB에서 실제 게시글 원문 조회
+-> 검색 결과 반환
+```
+
+현재 ChromaDB 환경변수는 다음을 사용합니다.
+
+```env
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
+CHROMA_SSL=false
+CHROMA_POST_COLLECTION=board_posts_openai
+OPENAI_API_KEY=
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+```
+
+관리자 재색인 API는 다음과 같습니다.
+
+```text
+POST /rag/posts/reindex
+```
+
+이 API는 MariaDB에 있는 게시글을 다시 읽어서 ChromaDB `board_posts` collection에 넣습니다.
+
+## 현재 기준: MCP 외부 API 도구 초기화
+
+알바/채용공고 게시판 방향으로 다시 설계하기 위해, 이전에 실험용으로 붙였던 MCP 외부 자료 검색 도구들을 제거했습니다.
+
+제거한 방향:
+
+- Stack Overflow, GitHub, arXiv, Open-Meteo 등 외부 자료 검색 MCP tool 제거
+- Wikipedia, Books, News, NASA, TMDB, OpenAQ, 환율, 코인, 주식, Naver 검색 도구 제거
+- 게시글 상세 페이지의 `AI 자료 추천 댓글` 버튼 제거
+- `/ai/posts/:postId/research-comment` API 제거
+- `McpService`는 JSON-RPC 요청을 받는 기본 구조만 유지
+
+현재 MCP는 다음 상태입니다.
+
+```text
+POST /mcp/json-rpc
+-> AuthGuard
+-> AdminGuard
+-> McpController
+-> McpService
+-> 아직 등록된 tool 없음
+```
+
+앞으로 사람인 API를 붙일 때는 이 기본 구조에 새 tool을 추가하면 됩니다.
+
+예상 방향:
+
+```text
+tool name: saramin_job_search
+역할: 사람인 채용정보 API 호출
+입력: keyword, location, page, limit
+출력: 채용공고 목록
+```
+
+## 현재 기준: OpenAI 임베딩 적용
+
+RAG 게시글 검색은 이제 직접 만든 로컬 임베딩이 아니라 OpenAI Embeddings API를 사용합니다.
+
+기본 모델:
+
+```env
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+```
+
+실행 환경에는 다음 환경변수가 필요합니다.
+
+```env
+OPENAI_API_KEY=발급받은키
+```
+
+컬렉션 이름은 기존 로컬 임베딩과 충돌하지 않도록 새로 분리했습니다.
+
+```env
+CHROMA_POST_COLLECTION=board_posts_openai
+```
+
+현재 흐름:
+
+```text
+게시글 생성/수정
+-> MariaDB에 원문 저장
+-> OpenAI Embeddings API로 게시글 벡터 생성
+-> ChromaDB board_posts_openai collection에 저장
+
+게시글 검색
+-> OpenAI Embeddings API로 검색어 벡터 생성
+-> ChromaDB에서 비슷한 게시글 id 조회
+-> MariaDB에서 실제 게시글 원문 조회
+```
+
+## V2 RAG 저장소 개편: MariaDB + ChromaDB
+
+이번 V2 개편부터 RAG 저장소 역할을 분리합니다.
+
+```text
+MariaDB
+- 회원
+- 게시글
+- 댓글
+- 태그
+- 채용공고 원본 데이터
+
+ChromaDB
+- 채용공고 임베딩 벡터
+- 사용자 검색어와 비슷한 채용공고 검색
+
+NestJS
+- MariaDB 원본 데이터와 ChromaDB 검색 결과를 연결
+```
+
+기존에는 `JobPosting.embedding` JSON 컬럼에 임베딩을 저장하고 NestJS 코드에서 직접 유사도를 계산했습니다.
+이제는 채용공고를 저장할 때 MariaDB에는 원본 데이터를 저장하고, ChromaDB에는 같은 `JobPosting.id`를 record id로 사용해서 임베딩 인덱스를 저장합니다.
+
+공식 Chroma 문서 기준으로 Chroma는 별도 서버로 실행할 수 있고, TypeScript에서는 `ChromaClient`로 접속합니다. 또한 컬렉션에는 직접 계산한 `embeddings`와 `documents`, `metadatas`를 넣을 수 있습니다.
+
+관련 공식 문서:
+
+- [Chroma Client-Server Mode](https://docs.trychroma.com/docs/run-chroma/client-server)
+- [Chroma TypeScript Client](https://docs.trychroma.com/reference/typescript/client)
+- [Chroma Add Data](https://docs.trychroma.com/docs/collections/add-data)
+- [Chroma Query and Get](https://docs.trychroma.com/docs/querying-collections/query-and-get)
+
+### 추가된 파일과 역할
+
+- `backend/src/rag/chroma-vector.service.ts`: ChromaDB 접속, collection 생성, 채용공고 벡터 저장, 검색, 삭제를 담당합니다.
+- `backend/src/rag/rag.service.ts`: RAG 검색 시 먼저 ChromaDB에서 비슷한 채용공고 id를 찾고, MariaDB에서 원본 채용공고를 다시 조회합니다.
+- `backend/src/rag/rag.controller.ts`: 관리자용 `POST /rag/job-postings/reindex` API를 추가했습니다.
+- `docker-compose.yml`: MariaDB와 ChromaDB를 Docker로 함께 실행합니다.
+- `backend/.env.example`: ChromaDB 접속 환경변수를 추가했습니다.
+- `backend/package.json`: 로컬 Chroma 실행용 `npm run chroma` 스크립트를 추가했습니다.
+
+### Docker로 MariaDB와 ChromaDB 실행
+
+`nest-board-api` 폴더에서 실행합니다.
+
+```bash
+docker compose up -d mariadb chromadb
+```
+
+`backend/.env`의 `DATABASE_URL` 비밀번호가 `password`가 아니라면, Docker 실행 전에 같은 비밀번호를 환경변수로 맞춥니다.
+
+```powershell
+$env:MARIADB_ROOT_PASSWORD="backend .env의 DATABASE_URL 비밀번호"
+docker compose up -d mariadb chromadb
+```
+
+상태 확인:
+
+```bash
+docker compose ps
+```
+
+종료:
+
+```bash
+docker compose down
+```
+
+데이터까지 완전히 삭제하고 싶을 때만 아래 명령어를 사용합니다.
+
+```bash
+docker compose down -v
+```
+
+### 백엔드 실행 순서
+
+```bash
+cd nest-board-api/backend
+npm install
+npm run db:generate
+npm run db:migrate
+npm run build
+npm run dev
+```
+
+`.env`의 기본 예시는 다음 흐름을 기준으로 합니다.
+
+```env
+DATABASE_URL=mysql://root:password@localhost:3306/nest_ai_board
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
+CHROMA_SSL=false
+CHROMA_POST_COLLECTION=board_posts_openai
+CHROMA_JOB_POSTING_COLLECTION=job_postings_openai
+```
+
+### RAG 검색 흐름
+
+```text
+사용자 검색어
+-> RagController
+-> RagService
+-> ChromaVectorService.searchJobPostings()
+-> ChromaDB에서 비슷한 채용공고 id 조회
+-> MariaDB에서 해당 id의 원본 채용공고 조회
+-> 프론트엔드에 검색 결과 반환
+```
+
+채용공고 동기화 흐름:
+
+```text
+관리자 MCP job_sync 실행
+-> 외부 채용공고 수집
+-> RagService.upsertJobPosting()
+-> MariaDB에 원본 채용공고 저장
+-> ChromaDB에 임베딩 벡터 upsert
+```
+
+기존 MariaDB 채용공고를 ChromaDB에 다시 넣고 싶을 때:
+
+```text
+POST /rag/job-postings/reindex
+Authorization: Bearer 관리자_토큰
+```
+
+ChromaDB가 꺼져 있으면 개발 중 기능 확인을 위해 기존 방식처럼 MariaDB 데이터를 읽고 NestJS에서 직접 유사도를 계산하는 fallback 경로를 사용합니다. 다만 과제 설명에서는 ChromaDB를 RAG 검색 인덱스로 사용하는 구조가 핵심입니다.
+
 ## #45 AI Agent 자료 추천 댓글 구현
 
 이번 작업에서는 사용자가 게시글 상세 페이지에서 버튼을 눌러 AI 자료 추천 댓글을 생성하는 Agent 흐름을 추가했습니다.
@@ -1056,3 +1305,83 @@ npm run build
 cd nest-board-api/frontend
 npm run build
 ```
+## 로컬 데모 데이터와 CORS
+
+사람인형 홈 화면의 `section_banner.main_product` 영역을 실제 API 데이터로 확인하려면 데모 게시글을 넣을 수 있습니다.
+
+```bash
+cd nest-board-api/backend
+npm run db:seed:demo
+```
+
+이 명령은 DB에 데모 작성자와 게시글을 직접 넣습니다. 글쓰기 API를 호출하지 않기 때문에 OpenAI 임베딩 비용은 발생하지 않습니다.
+
+프론트 주소는 CORS 설정과 맞아야 합니다. 기본 예시는 다음 두 주소를 허용합니다.
+
+```env
+FRONTEND_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
+```
+
+브라우저에서 `http://localhost:5173` 또는 `http://127.0.0.1:5173`로 접속하면 백엔드 `http://localhost:3001` API를 호출할 수 있습니다.
+
+## 현재 기준: ChromaDB 2개 컬렉션과 사람인 공고 업데이트
+
+이번 구조에서는 MariaDB와 ChromaDB의 역할을 분리합니다.
+
+MariaDB는 원본 데이터를 저장합니다.
+
+- `posts`: 사용자가 작성한 게시글 원본
+- `job_postings`: 사람인 API에서 가져온 채용공고 원본
+
+ChromaDB는 OpenAI 임베딩 벡터를 저장합니다.
+
+- `board_posts_openai`: 게시글 임베딩 컬렉션
+- `job_postings_openai`: 채용공고 임베딩 컬렉션
+
+게시글 저장 흐름:
+
+```text
+프론트 글쓰기
+-> POST /posts
+-> PostsService.create()
+-> MariaDB posts 저장
+-> ChromaVectorService.upsertPostVector()
+-> OpenAI Embeddings API로 게시글 임베딩 생성
+-> ChromaDB board_posts_openai 컬렉션에 저장
+```
+
+채용공고 업데이트 흐름:
+
+```text
+관리자 설정 페이지
+-> 사람인 공고 업데이트 버튼 클릭
+-> POST /job-postings/saramin/sync
+-> AuthGuard
+-> AdminGuard
+-> JobPostingsService.syncSaraminJobPostings()
+-> 사람인 API에서 서울 개발자 신입/경력 공고 조회
+-> MariaDB job_postings 저장 또는 갱신
+-> OpenAI Embeddings API로 공고 임베딩 생성
+-> ChromaDB job_postings_openai 컬렉션에 저장
+```
+
+필요한 환경변수:
+
+```env
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
+CHROMA_SSL=false
+CHROMA_POST_COLLECTION=board_posts_openai
+CHROMA_JOB_POSTING_COLLECTION=job_postings_openai
+
+OPENAI_API_KEY=발급받은_OpenAI_키
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+
+SARAMIN_API_KEY=발급받은_사람인_키
+SARAMIN_API_URL=https://oapi.saramin.co.kr/job-search
+SARAMIN_DEVELOPER_KEYWORD=개발자
+SARAMIN_SEOUL_LOCATION_CODE=101000
+SARAMIN_FETCH_COUNT=20
+```
+
+관리자 버튼은 `ADMIN_EMAILS`에 등록된 이메일로 가입한 관리자 계정에서만 보입니다.

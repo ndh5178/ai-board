@@ -1,149 +1,182 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
-import { cosineSimilarity, createEmbedding, readEmbedding } from "./embedding";
-import { readSearchJobPostingsQuery, type SearchJobPostingsQuery } from "./rag.dto";
+import { ChromaVectorService } from "./chroma-vector.service";
+import { readSearchPostsQuery, type SearchPostsQuery } from "./rag.dto";
 
-export type UpsertJobPostingInput = {
-  company: string;
-  deadline?: Date | null;
-  description: string;
-  experience?: string | null;
-  externalId: string;
-  location?: string | null;
-  skills?: string[];
-  source: string;
+type PostForVector = {
+  author: {
+    email: string;
+    id: string;
+    name: string;
+  };
+  content: string;
+  excerpt: string | null;
+  id: string;
+  status: string;
+  tags: Array<{
+    tag: {
+      id: string;
+      name: string;
+    };
+  }>;
   title: string;
-  url: string;
 };
 
 @Injectable()
 export class RagService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly chromaVectorService: ChromaVectorService,
+  ) {}
 
-  async searchJobPostings(query: SearchJobPostingsQuery = {}) {
-    const input = readSearchJobPostingsQuery(query);
-    const queryEmbedding = createEmbedding(input.q);
-    const jobPostings = await this.prisma.jobPosting.findMany({
+  async searchPosts(query: SearchPostsQuery = {}) {
+    const input = readSearchPostsQuery(query);
+    const chromaMatches = await this.searchPostsWithChroma(input.q, input.limit);
+
+    if (chromaMatches.length > 0) {
+      return this.buildSearchResponse(input.q, chromaMatches);
+    }
+
+    return {
+      matches: [],
+      query: input.q,
+      totalCount: 0,
+    };
+  }
+
+  async reindexPublishedPosts() {
+    const posts = await this.prisma.post.findMany({
       orderBy: {
-        lastFetchedAt: "desc",
+        createdAt: "desc",
       },
-      select: {
-        company: true,
-        deadline: true,
-        description: true,
-        experience: true,
-        id: true,
-        location: true,
-        skills: true,
-        source: true,
-        title: true,
-        url: true,
-        embedding: true,
-      },
+      select: this.postSearchSelect(),
       where: {
-        status: "ACTIVE",
+        status: "PUBLISHED",
       },
     });
 
-    const matches = jobPostings
-      .map((jobPosting) => {
-        const score = cosineSimilarity(queryEmbedding, readEmbedding(jobPosting.embedding));
+    let indexedCount = 0;
+
+    for (const post of posts) {
+      await this.upsertPostVector(post);
+      indexedCount += 1;
+    }
+
+    return {
+      indexedCount,
+      totalCount: posts.length,
+    };
+  }
+
+  async upsertPostVector(post: PostForVector) {
+    try {
+      if (post.status !== "PUBLISHED") {
+        await this.chromaVectorService.deletePost(post.id);
+        return;
+      }
+
+      await this.chromaVectorService.upsertPost({
+        authorName: post.author.name,
+        content: post.content,
+        id: post.id,
+        status: post.status,
+        tags: this.readTagNames(post.tags),
+        title: post.title,
+      });
+    } catch {
+      return;
+    }
+  }
+
+  async deletePostVector(id: string) {
+    try {
+      await this.chromaVectorService.deletePost(id);
+    } catch {
+      return;
+    }
+  }
+
+  private async searchPostsWithChroma(query: string, limit: number) {
+    try {
+      return await this.chromaVectorService.searchPosts(query, limit);
+    } catch {
+      return [];
+    }
+  }
+
+  private async buildSearchResponse(query: string, vectorMatches: Array<{ id: string; score: number }>) {
+    const posts = await this.prisma.post.findMany({
+      select: this.postSearchSelect(),
+      where: {
+        id: {
+          in: vectorMatches.map((match) => match.id),
+        },
+        status: "PUBLISHED",
+      },
+    });
+    const postById = new Map(posts.map((post) => [post.id, post]));
+    const matches = vectorMatches
+      .map((match) => {
+        const post = postById.get(match.id);
+
+        if (!post) {
+          return null;
+        }
 
         return {
-          jobPosting: {
-            company: jobPosting.company,
-            deadline: jobPosting.deadline,
-            description: jobPosting.description,
-            experience: jobPosting.experience,
-            id: jobPosting.id,
-            location: jobPosting.location,
-            skills: jobPosting.skills,
-            source: jobPosting.source,
-            title: jobPosting.title,
-            url: jobPosting.url,
-          },
-          score,
+          post,
+          score: match.score,
         };
       })
-      .filter((match) => match.score > 0)
-      .sort((left, right) => right.score - left.score)
-      .slice(0, input.limit);
+      .filter((match): match is { post: NonNullable<typeof posts[number]>; score: number } => Boolean(match));
 
     return {
       matches,
-      query: input.q,
+      query,
       totalCount: matches.length,
     };
   }
 
-  async upsertJobPosting(input: UpsertJobPostingInput) {
-    const embedding = createEmbedding(this.buildJobPostingText(input));
-    const deadline = input.deadline ?? null;
-    const status = deadline && deadline.getTime() < Date.now() ? "EXPIRED" : "ACTIVE";
-
-    return this.prisma.jobPosting.upsert({
-      create: {
-        company: input.company,
-        deadline,
-        description: input.description,
-        embedding: embedding as Prisma.InputJsonValue,
-        experience: input.experience ?? null,
-        externalId: input.externalId,
-        lastFetchedAt: new Date(),
-        location: input.location ?? null,
-        skills: (input.skills ?? []) as Prisma.InputJsonValue,
-        source: input.source,
-        status,
-        title: input.title,
-        url: input.url,
-      },
-      update: {
-        company: input.company,
-        deadline,
-        description: input.description,
-        embedding: embedding as Prisma.InputJsonValue,
-        experience: input.experience ?? null,
-        lastFetchedAt: new Date(),
-        location: input.location ?? null,
-        skills: (input.skills ?? []) as Prisma.InputJsonValue,
-        status,
-        title: input.title,
-        url: input.url,
-      },
-      where: {
-        source_externalId: {
-          externalId: input.externalId,
-          source: input.source,
-        },
-      },
+  private buildPostText(post: PostForVector) {
+    return this.chromaVectorService.buildPostText({
+      authorName: post.author.name,
+      content: post.content,
+      tags: this.readTagNames(post.tags),
+      title: post.title,
     });
   }
 
-  async expirePastDeadlineJobPostings() {
-    return this.prisma.jobPosting.updateMany({
-      data: {
-        status: "EXPIRED",
-      },
-      where: {
-        deadline: {
-          lt: new Date(),
-        },
-        status: "ACTIVE",
-      },
-    });
+  private readTagNames(tags: PostForVector["tags"]) {
+    return tags.map((postTag) => postTag.tag.name);
   }
 
-  private buildJobPostingText(input: UpsertJobPostingInput) {
-    return [
-      input.title,
-      input.company,
-      input.location,
-      input.experience,
-      ...(input.skills ?? []),
-      input.description,
-    ]
-      .filter(Boolean)
-      .join(" ");
+  private postSearchSelect() {
+    return {
+      author: {
+        select: {
+          email: true,
+          id: true,
+          name: true,
+        },
+      },
+      content: true,
+      createdAt: true,
+      excerpt: true,
+      id: true,
+      status: true,
+      tags: {
+        select: {
+          tag: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+      title: true,
+      updatedAt: true,
+      viewCount: true,
+    };
   }
 }

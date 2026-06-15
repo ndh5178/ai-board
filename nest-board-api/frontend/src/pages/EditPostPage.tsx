@@ -52,7 +52,7 @@ export function EditPostPage() {
   }
 
   return (
-    <PageShell description="수정 후 상세 페이지로 돌아갑니다." eyebrow="Edit" title="게시글 수정">
+    <PageShell description="왼쪽에서 수정하면 오른쪽에서 상세페이지 미리보기를 확인할 수 있습니다." eyebrow="Edit" title="게시글 수정">
       <PostForm mode="edit" post={post} />
     </PageShell>
   );
