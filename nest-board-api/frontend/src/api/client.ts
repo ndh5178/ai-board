@@ -1,6 +1,7 @@
 import type { ApiResult } from "../types/api";
 
 const DEFAULT_API_BASE_URL = "http://localhost:3001";
+export const AUTH_TOKEN_STORAGE_KEY = "nest-board-auth-token";
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? DEFAULT_API_BASE_URL;
@@ -8,17 +9,32 @@ export const API_BASE_URL =
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
+  auth?: boolean;
   signal?: AbortSignal;
 };
 
 export async function apiRequest<T>(
   path: string,
-  { body, method = "GET", signal }: RequestOptions = {},
+  { auth = false, body, method = "GET", signal }: RequestOptions = {},
 ): Promise<ApiResult<T>> {
   try {
+    const headers = new Headers();
+
+    if (body) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    if (auth) {
+      const token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+    }
+
     const response = await fetch(`${API_BASE_URL}${path}`, {
       body: body ? JSON.stringify(body) : undefined,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
+      headers,
       method,
       signal,
     });
@@ -57,4 +73,12 @@ export async function apiRequest<T>(
       ok: false,
     };
   }
+}
+
+export function saveAuthToken(token: string) {
+  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+}
+
+export function clearAuthToken() {
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 }

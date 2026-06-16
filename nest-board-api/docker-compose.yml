@@ -1,0 +1,33 @@
+services:
+  mariadb:
+    container_name: nest-board-mariadb
+    environment:
+      MARIADB_DATABASE: nest_ai_board
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-password}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    image: mariadb:11
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+    volumes:
+      - mariadb-data:/var/lib/mysql
+
+  chromadb:
+    container_name: nest-board-chromadb
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /data
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    volumes:
+      - chroma-data:/data
+
+volumes:
+  chroma-data:
+  mariadb-data:

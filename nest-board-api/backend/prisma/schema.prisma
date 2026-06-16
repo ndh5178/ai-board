@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
+enum JobPostingStatus {
+  ACTIVE
+  EXPIRED
+  HIDDEN
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  name                  String
+  passwordHash          String
+  role                  Role                   @default(USER)
+  posts                 Post[]
+  comments              Comment[]
+  writingStyleAnalyses  WritingStyleAnalysis[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@map("users")
+}
+
+model Post {
+  id        String     @id @default(cuid())
+  title     String     @db.VarChar(200)
+  content   String     @db.Text
+  excerpt   String?    @db.VarChar(300)
+  status    PostStatus @default(PUBLISHED)
+  viewCount Int        @default(0)
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  Comment[]
+  tags      PostTag[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([status])
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  postId    String
+  authorId  String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId])
+  @@index([authorId])
+  @@map("comments")
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  posts     PostTag[]
+  createdAt DateTime  @default(now())
+
+  @@map("tags")
+}
+
+model PostTag {
+  postId    String
+  tagId     String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([postId, tagId])
+  @@index([tagId])
+  @@map("post_tags")
+}
+
+model JobPosting {
+  id            String           @id @default(cuid())
+  source        String           @db.VarChar(80)
+  externalId    String           @db.VarChar(191)
+  title         String           @db.VarChar(200)
+  company       String           @db.VarChar(120)
+  location      String?          @db.VarChar(120)
+  experience    String?          @db.VarChar(120)
+  skills        Json?
+  description   String           @db.Text
+  url           String           @db.VarChar(500)
+  deadline      DateTime?
+  status        JobPostingStatus @default(ACTIVE)
+  lastFetchedAt DateTime         @default(now())
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([source, externalId])
+  @@index([status])
+  @@index([deadline])
+  @@index([lastFetchedAt])
+  @@map("job_postings")
+}
+
+model WritingStyleAnalysis {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceHash  String   @db.VarChar(64)
+  postCount   Int
+  result      Json
+  analyzedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([analyzedAt])
+  @@map("writing_style_analyses")
+}
+

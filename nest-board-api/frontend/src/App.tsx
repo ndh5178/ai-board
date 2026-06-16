@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SiteHeader } from "./components/SiteHeader";
 import { AiPage } from "./pages/AiPage";
@@ -17,9 +17,12 @@ import { SignupPage } from "./pages/SignupPage";
 import { TagsPage } from "./pages/TagsPage";
 
 export function App() {
+  const location = useLocation();
+  const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
+
   return (
     <>
-      <SiteHeader />
+      {isAuthPage ? null : <SiteHeader />}
       <Routes>
         <Route element={<HomePage />} path="/" />
         <Route element={<PostsPage />} path="/posts" />
