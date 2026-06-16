@@ -2,10 +2,13 @@ import type { PostSummary } from "../types/post";
 import { PostCard } from "./PostCard";
 
 type PostListProps = {
+  detailState?: {
+    returnTo: string;
+  };
   posts: PostSummary[];
 };
 
-export function PostList({ posts }: PostListProps) {
+export function PostList({ detailState, posts }: PostListProps) {
   if (posts.length === 0) {
     return (
       <section className="empty-state">
@@ -18,7 +21,7 @@ export function PostList({ posts }: PostListProps) {
   return (
     <section className="stack">
       {posts.map((post, index) => (
-        <PostCard key={post.id} post={post} rank={index + 1} />
+        <PostCard detailState={detailState} key={post.id} post={post} rank={index + 1} />
       ))}
     </section>
   );

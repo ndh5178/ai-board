@@ -24,15 +24,16 @@ enum JobPostingStatus {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  passwordHash String
-  role         Role      @default(USER)
-  posts        Post[]
-  comments     Comment[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  name                  String
+  passwordHash          String
+  role                  Role                   @default(USER)
+  posts                 Post[]
+  comments              Comment[]
+  writingStyleAnalyses  WritingStyleAnalysis[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 
   @@map("users")
 }
@@ -115,5 +116,21 @@ model JobPosting {
   @@index([deadline])
   @@index([lastFetchedAt])
   @@map("job_postings")
+}
+
+model WritingStyleAnalysis {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceHash  String   @db.VarChar(64)
+  postCount   Int
+  result      Json
+  analyzedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([analyzedAt])
+  @@map("writing_style_analyses")
 }
 

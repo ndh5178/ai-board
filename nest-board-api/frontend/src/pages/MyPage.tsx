@@ -1,9 +1,8 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiRequest } from "../api/client";
 import { PageShell } from "../components/PageShell";
 import { useAuth } from "../auth/AuthContext";
-import { usePosts } from "../posts/PostContext";
 
 type WritingStyleResponse = {
   analysis: {
@@ -24,17 +23,53 @@ type WritingStyleResponse = {
     }>;
     totalCharacters: number;
     totalTextCount: number;
+    writingTypes: Array<{
+      count: number;
+      description: string;
+      titles: string[];
+      type: string;
+    }>;
+  };
+};
+
+type MeSummaryResponse = {
+  summary: {
+    commentCount: number;
+    postCount: number;
   };
 };
 
 export function MyPage() {
   const { user } = useAuth();
-  const { posts } = usePosts();
+  const [summary, setSummary] = useState({
+    commentCount: 0,
+    postCount: 0,
+  });
   const [writingStyle, setWritingStyle] = useState<WritingStyleResponse["analysis"] | null>(null);
   const [message, setMessage] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const myPosts = posts.filter((post) => post.authorEmail === user?.email);
-  const myComments = posts.flatMap((post) => post.comments).filter((comment) => comment.authorEmail === user?.email);
+  const maxWritingTypeCount = Math.max(...(writingStyle?.writingTypes.map((type) => type.count) ?? [1]), 1);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchSummary() {
+      const result = await apiRequest<MeSummaryResponse>("/me/summary", {
+        auth: true,
+      });
+
+      if (!ignore && result.ok) {
+        setSummary(result.data.summary);
+      }
+    }
+
+    void fetchSummary();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const handleAnalyzeWritingStyle = async () => {
     setIsAnalyzing(true);
     setMessage("");
@@ -65,11 +100,11 @@ export function MyPage() {
       </section>
       <section className="my-dashboard" aria-label="내 활동 요약">
         <div>
-          <strong>{myPosts.length}</strong>
+          <strong>{summary.postCount}</strong>
           <span>내가 쓴 글</span>
         </div>
         <div>
-          <strong>{myComments.length}</strong>
+          <strong>{summary.commentCount}</strong>
           <span>내 댓글</span>
         </div>
       </section>
@@ -80,7 +115,7 @@ export function MyPage() {
         </div>
         <div className="writing-style">
           <div className="writing-style__intro">
-            <p>내가 작성한 게시글과 댓글을 바탕으로 글쓰기 습관과 학습 패턴을 분석합니다.</p>
+            <p>내가 작성한 글 중 스타일 분석 태그가 붙은 게시글 10개 이상을 바탕으로 글쓰기 습관과 학습 패턴을 분석합니다.</p>
             <button className="button button--primary" disabled={isAnalyzing} onClick={() => void handleAnalyzeWritingStyle()} type="button">
               {isAnalyzing ? "분석 중" : "내 글 스타일 알아보기"}
             </button>
@@ -99,17 +134,35 @@ export function MyPage() {
                   <span>분석한 글</span>
                 </div>
                 <div>
-                  <strong>{writingStyle.commentCount}</strong>
-                  <span>분석한 댓글</span>
+                  <strong>{writingStyle.writingTypes.length}</strong>
+                  <span>발견한 글 유형</span>
                 </div>
-                <div>
-                  <strong>{Math.round(writingStyle.questionRatio * 100)}%</strong>
-                  <span>질문형 비율</span>
-                </div>
-                <div>
-                  <strong>{Math.round(writingStyle.technicalRatio * 100)}%</strong>
-                  <span>기술 키워드 비율</span>
-                </div>
+              </div>
+              <div className="writing-style__types">
+                <h3>글 유형 분포</h3>
+                {writingStyle.writingTypes.length > 0 ? (
+                  <div className="writing-style__type-list">
+                    {writingStyle.writingTypes.map((type) => (
+                      <article className="writing-style__type" key={type.type}>
+                        <div className="writing-style__type-head">
+                          <strong>{type.type}</strong>
+                          <span>{type.count}개</span>
+                        </div>
+                        <div className="writing-style__bar" aria-hidden="true">
+                          <span style={{ width: `${Math.max((type.count / maxWritingTypeCount) * 100, 8)}%` }} />
+                        </div>
+                        <p>{type.description}</p>
+                        <ul>
+                          {type.titles.map((title) => (
+                            <li key={title}>{title}</li>
+                          ))}
+                        </ul>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p>아직 분류된 글 유형이 없습니다.</p>
+                )}
               </div>
               <div className="writing-style__columns">
                 <div>

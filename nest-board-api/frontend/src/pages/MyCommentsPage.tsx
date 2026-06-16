@@ -1,32 +1,67 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { apiRequest } from "../api/client";
 import { PageShell } from "../components/PageShell";
-import { useAuth } from "../auth/AuthContext";
-import { usePosts } from "../posts/PostContext";
+import { formatDate } from "../posts/postMapper";
+
+type MyComment = {
+  content: string;
+  createdAt: string;
+  id: string;
+  post: {
+    id: string;
+    title: string;
+  };
+};
+
+type MyCommentsResponse = {
+  comments: MyComment[];
+  totalCount: number;
+};
 
 export function MyCommentsPage() {
-  const { user } = useAuth();
-  const { posts } = usePosts();
-  const myComments = posts.flatMap((post) =>
-    post.comments
-      .filter((comment) => comment.authorEmail === user?.email)
-      .map((comment) => ({
-        ...comment,
-        postId: post.id,
-        postTitle: post.title,
-      })),
-  );
+  const [myComments, setMyComments] = useState<MyComment[]>([]);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchMyComments() {
+      const result = await apiRequest<MyCommentsResponse>("/me/comments", {
+        auth: true,
+      });
+
+      if (ignore) {
+        return;
+      }
+
+      if (!result.ok) {
+        setMessage(result.message);
+        return;
+      }
+
+      setMyComments(result.data.comments);
+    }
+
+    void fetchMyComments();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   return (
     <PageShell description="내가 남긴 댓글을 모아서 확인합니다." eyebrow="My" title="내 댓글">
+      {message ? <p className="form-message">{message}</p> : null}
       <section className="my-list">
         {myComments.length > 0 ? (
           myComments.map((comment) => (
-            <Link className="my-list__item" key={comment.id} to={`/posts/${comment.postId}`}>
+            <Link className="my-list__item" key={comment.id} to={`/posts/${comment.post.id}`}>
               <div>
-                <h2>{comment.postTitle}</h2>
+                <h2>{comment.post.title}</h2>
                 <p>{comment.content}</p>
               </div>
-              <span>{comment.createdAt}</span>
+              <span>{formatDate(comment.createdAt)}</span>
             </Link>
           ))
         ) : (

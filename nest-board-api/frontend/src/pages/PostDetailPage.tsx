@@ -1,17 +1,30 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { CommentSection } from "../components/CommentSection";
 import { PageShell } from "../components/PageShell";
 import { usePosts } from "../posts/PostContext";
 
+type PostDetailLocationState = {
+  returnTo?: string;
+};
+
+const AI_JOB_COMMENT_PREFIX = "[AI 채용공고 추천]";
+const AUTO_COMMENT_REFRESH_DELAYS = [2000, 5000, 10000];
+
 export function PostDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { deletePost, fetchPostById, getPostById, posts } = usePosts();
   const [message, setMessage] = useState("");
   const post = getPostById(id);
+  const locationState = location.state as PostDetailLocationState | null;
+  const returnTo = locationState?.returnTo === "/me/posts" ? "/me/posts" : "/posts";
+  const hasCareerTag = post?.tags.includes("채용") ?? false;
+  const hasAiJobComment =
+    post?.comments.some((comment) => comment.content.startsWith(AI_JOB_COMMENT_PREFIX)) ?? false;
 
   useEffect(() => {
     let ignore = false;
@@ -31,11 +44,27 @@ export function PostDetailPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!id || !hasCareerTag || hasAiJobComment) {
+      return;
+    }
+
+    const timers = AUTO_COMMENT_REFRESH_DELAYS.map((delay) =>
+      window.setTimeout(() => {
+        void fetchPostById(id);
+      }, delay),
+    );
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [fetchPostById, hasAiJobComment, hasCareerTag, id, post?.commentCount]);
+
   if (!post) {
     return (
       <PageShell eyebrow="Not Found" title="게시글을 찾을 수 없습니다" description="목록에서 다시 선택해 주세요.">
         {message ? <p className="form-message">{message}</p> : null}
-        <Link className="button button--secondary" to="/posts">
+        <Link className="button button--secondary" to={returnTo}>
           목록으로
         </Link>
       </PageShell>
@@ -61,7 +90,7 @@ export function PostDetailPage() {
       return;
     }
 
-    navigate("/posts", { replace: true });
+    navigate(returnTo, { replace: true });
   };
 
   return (
@@ -83,7 +112,7 @@ export function PostDetailPage() {
           </div>
           <div className="post-detail__actions">
             {message ? <p className="form-message">{message}</p> : null}
-            <Link className="button button--secondary" to="/posts">
+            <Link className="button button--secondary" to={returnTo}>
               목록으로
             </Link>
             <Link className="button button--primary" to="/posts/new">

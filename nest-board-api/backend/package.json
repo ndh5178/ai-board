@@ -8,6 +8,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed:demo": "node prisma/seed-demo-data.mjs",
+    "db:seed:style-analysis": "node prisma/seed-style-analysis-posts.mjs",
+    "db:seed:wanted-jobs": "node prisma/seed-wanted-job-postings.mjs",
     "db:studio": "prisma studio",
     "dev": "nest start --watch",
     "start": "node dist/main.js",

@@ -556,6 +556,9 @@ body {
 .product-card__tags span,
 .tag {
   min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 10px;
   border: 1px solid #dbe4f3;
   border-radius: 999px;
@@ -563,6 +566,7 @@ body {
   color: #2563eb;
   font-size: 12px;
   font-weight: 900;
+  line-height: 1;
 }
 
 .product-empty-cta {

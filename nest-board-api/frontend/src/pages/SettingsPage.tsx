@@ -5,6 +5,16 @@ import { useAuth } from "../auth/AuthContext";
 import { PageShell } from "../components/PageShell";
 import { usePosts } from "../posts/PostContext";
 
+type JobSyncTarget = "saramin" | "fallback";
+
+type JobSyncResponse = {
+  fetchedCount: number;
+  indexedCount: number;
+  indexFailedCount?: number;
+  savedCount: number;
+  source: string;
+};
+
 export function SettingsPage() {
   const { changePassword, deleteAccountFromServer, user } = useAuth();
   const { deletePostsByAuthor } = usePosts();
@@ -14,7 +24,7 @@ export function SettingsPage() {
   const [jobSyncMessage, setJobSyncMessage] = useState("");
   const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
   const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
-  const [isJobSyncSubmitting, setIsJobSyncSubmitting] = useState(false);
+  const [jobSyncTarget, setJobSyncTarget] = useState<JobSyncTarget | null>(null);
 
   const handlePasswordChange = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -80,29 +90,32 @@ export function SettingsPage() {
     navigate("/", { replace: true });
   };
 
-  const handleJobPostingSync = async () => {
-    setIsJobSyncSubmitting(true);
+  const handleJobPostingSync = async (target: JobSyncTarget) => {
+    const endpoint =
+      target === "saramin" ? "/job-postings/saramin/sync" : "/job-postings/wanted-fallback/sync";
+    const label = target === "saramin" ? "사람인 공고" : "Fallback 공고";
+
+    setJobSyncTarget(target);
     setJobSyncMessage("");
 
-    const result = await apiRequest<{
-      fetchedCount: number;
-      indexedCount: number;
-      savedCount: number;
-      source: string;
-    }>("/job-postings/saramin/sync", {
+    const result = await apiRequest<JobSyncResponse>(endpoint, {
       auth: true,
       method: "POST",
     });
 
-    setIsJobSyncSubmitting(false);
+    setJobSyncTarget(null);
 
     if (!result.ok) {
       setJobSyncMessage(result.message);
       return;
     }
 
+    const indexFailedCount = result.data.indexFailedCount ?? 0;
+    const failedMessage =
+      indexFailedCount > 0 ? `, ${indexFailedCount}개 임베딩 실패` : "";
+
     setJobSyncMessage(
-      `사람인 공고 ${result.data.savedCount}개 저장, ${result.data.indexedCount}개 임베딩 완료`,
+      `${label} ${result.data.savedCount}개 저장, ${result.data.indexedCount}개 임베딩 완료${failedMessage}`,
     );
   };
 
@@ -118,17 +131,31 @@ export function SettingsPage() {
         <section className="settings-grid" aria-label="관리자 설정">
           <article className="settings-panel">
             <div>
-              <h2>채용공고 업데이트</h2>
-              <p>사람인 API에서 서울 개발자 신입/경력 공고를 가져와 DB와 ChromaDB에 저장합니다.</p>
+              <h2>사람인 채용공고 불러오기</h2>
+              <p>사람인 API 키가 있을 때 서울 개발자 채용공고를 DB와 ChromaDB에 저장합니다.</p>
             </div>
             {jobSyncMessage ? <p className="form-message">{jobSyncMessage}</p> : null}
             <button
               className="button button--primary"
-              disabled={isJobSyncSubmitting}
-              onClick={handleJobPostingSync}
+              disabled={jobSyncTarget !== null}
+              onClick={() => handleJobPostingSync("saramin")}
               type="button"
             >
-              {isJobSyncSubmitting ? "업데이트 중" : "사람인 공고 업데이트"}
+              {jobSyncTarget === "saramin" ? "불러오는 중" : "사람인 공고 불러오기"}
+            </button>
+          </article>
+          <article className="settings-panel">
+            <div>
+              <h2>Fallback 채용공고 불러오기</h2>
+              <p>API 키가 없거나 외부 API가 실패할 때, 원티드 seed 공고를 DB와 ChromaDB에 저장합니다.</p>
+            </div>
+            <button
+              className="button button--secondary"
+              disabled={jobSyncTarget !== null}
+              onClick={() => handleJobPostingSync("fallback")}
+              type="button"
+            >
+              {jobSyncTarget === "fallback" ? "불러오는 중" : "Fallback 공고 불러오기"}
             </button>
           </article>
         </section>

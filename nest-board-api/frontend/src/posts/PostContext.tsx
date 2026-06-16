@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 import { apiRequest } from "../api/client";
 import type { ApiResult } from "../types/api";
 import type { ApiComment, ApiPost, PostComment, PostSummary } from "../types/post";
-
-const accents = ["#ef3f7b", "#7c3cff", "#1f9d8a", "#ff8a3d", "#2563eb"];
+import { parseTags, toPostComment, toPostSummary, type ListPostsResponse } from "./postMapper";
 
 type PostInput = {
   authorEmail?: string;
@@ -47,14 +46,6 @@ type CommentInput = {
   content: string;
 };
 
-type ListPostsResponse = {
-  page: number;
-  pageSize: number;
-  posts: ApiPost[];
-  totalCount: number;
-  totalPages: number;
-};
-
 type PostResponse = {
   post: ApiPost;
 };
@@ -74,51 +65,6 @@ type TagsResponse = {
 };
 
 const PostsContext = createContext<PostsContextValue | null>(null);
-
-function formatDate(value: string) {
-  return value.slice(0, 10);
-}
-
-function createExcerpt(content: string) {
-  const text = content.replace(/\s+/g, " ").trim();
-
-  return text.length > 90 ? `${text.slice(0, 90)}...` : text;
-}
-
-function parseTags(tags: string) {
-  return tags
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
-
-function toPostComment(comment: ApiComment): PostComment {
-  return {
-    authorEmail: comment.author.email,
-    authorName: comment.author.name,
-    content: comment.content,
-    createdAt: formatDate(comment.createdAt),
-    id: comment.id,
-  };
-}
-
-function toPostSummary(post: ApiPost, index = 0): PostSummary {
-  const content = post.content ?? post.excerpt ?? "";
-
-  return {
-    accent: accents[index % accents.length],
-    authorEmail: post.author.email,
-    authorName: post.author.name,
-    commentCount: post._count.comments,
-    comments: post.comments?.map(toPostComment) ?? [],
-    content,
-    createdAt: formatDate(post.createdAt),
-    excerpt: post.excerpt ?? createExcerpt(content),
-    id: post.id,
-    tags: post.tags.map((tagLink) => tagLink.tag.name),
-    title: post.title,
-  };
-}
 
 function buildPostsPath(query: PostsQuery = {}) {
   const searchParams = new URLSearchParams();
@@ -159,7 +105,13 @@ export function PostsProvider({ children }: { children: ReactNode }) {
 
   async function loadInitialData() {
     setIsLoading(true);
-    await Promise.all([loadPosts(), loadTags()]);
+    await Promise.all([
+      loadPosts({
+        page: 1,
+        pageSize: 8,
+      }),
+      loadTags(),
+    ]);
     setIsLoading(false);
   }
 

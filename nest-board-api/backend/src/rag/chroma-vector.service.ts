@@ -1,6 +1,6 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ChromaClient, type Collection, type Metadata } from "chromadb";
-import { createEmbedding, type EmbeddingVector } from "./embedding";
+import { createEmbedding } from "./embedding";
 
 const DEFAULT_CHROMA_HOST = "localhost";
 const DEFAULT_CHROMA_PORT = 8000;
@@ -34,9 +34,13 @@ export type JobPostingVectorInput = {
   url: string;
 };
 
+export type JobPostingVectorMatch = {
+  id: string;
+  score: number;
+};
+
 @Injectable()
 export class ChromaVectorService {
-  private readonly logger = new Logger(ChromaVectorService.name);
   private readonly client: ChromaClient;
   private readonly postCollectionName = process.env.CHROMA_POST_COLLECTION ?? DEFAULT_POST_COLLECTION_NAME;
   private readonly jobPostingCollectionName =
@@ -92,32 +96,6 @@ export class ChromaVectorService {
     });
   }
 
-  async deletePosts(ids: string[]) {
-    if (ids.length === 0) {
-      return;
-    }
-
-    const collection = await this.getPostCollection();
-
-    await collection.delete({
-      ids,
-    });
-  }
-
-  async isAvailable() {
-    try {
-      await this.client.heartbeat();
-      return true;
-    } catch (error) {
-      this.logger.warn(error instanceof Error ? error.message : "ChromaDB heartbeat failed");
-      return false;
-    }
-  }
-
-  createOpenAiEmbedding(text: string): Promise<EmbeddingVector> {
-    return createEmbedding(text);
-  }
-
   buildPostText(input: Pick<PostVectorInput, "authorName" | "content" | "tags" | "title">) {
     return [input.title, input.authorName, ...(input.tags ?? []), input.content].filter(Boolean).join(" ");
   }
@@ -132,6 +110,26 @@ export class ChromaVectorService {
       ids: [input.id],
       metadatas: [this.buildJobPostingMetadata(input)],
     });
+  }
+
+  async searchJobPostings(query: string, limit: number): Promise<JobPostingVectorMatch[]> {
+    const collection = await this.getJobPostingCollection();
+    const queryEmbedding = await createEmbedding(query);
+    const result = await collection.query({
+      include: ["distances"],
+      nResults: limit,
+      queryEmbeddings: [queryEmbedding],
+      where: {
+        status: "ACTIVE",
+      },
+    });
+
+    return (
+      result.rows()[0]?.map((row) => ({
+        id: row.id,
+        score: this.distanceToScore(row.distance),
+      })) ?? []
+    );
   }
 
   buildJobPostingText(
@@ -179,7 +177,7 @@ export class ChromaVectorService {
       },
       embeddingFunction: null,
       metadata: {
-        description: "RAG search index for Saramin job postings stored in MariaDB",
+        description: "RAG search index for job postings stored in MariaDB",
         embedding: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small",
       },
       name: this.jobPostingCollectionName,

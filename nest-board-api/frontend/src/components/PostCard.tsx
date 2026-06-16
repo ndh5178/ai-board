@@ -2,11 +2,14 @@ import { Link } from "react-router-dom";
 import type { PostSummary } from "../types/post";
 
 type PostCardProps = {
+  detailState?: {
+    returnTo: string;
+  };
   post: PostSummary;
   rank?: number;
 };
 
-export function PostCard({ post, rank }: PostCardProps) {
+export function PostCard({ detailState, post, rank }: PostCardProps) {
   return (
     <article className="post-card">
       <div className="post-card__badge">
@@ -14,7 +17,7 @@ export function PostCard({ post, rank }: PostCardProps) {
         <strong>Pick</strong>
       </div>
       <div className="post-card__body">
-        <Link to={`/posts/${post.id}`}>
+        <Link state={detailState} to={`/posts/${post.id}`}>
           <h2>{post.title}</h2>
         </Link>
         <p className="post-card__venue">{post.authorName}</p>

@@ -12,4 +12,10 @@ export class JobPostingsController {
   syncSaraminJobPostings() {
     return this.jobPostingsService.syncSaraminJobPostings();
   }
+
+  @Post("wanted-fallback/sync")
+  @UseGuards(AuthGuard, AdminGuard)
+  syncWantedFallbackJobPostings() {
+    return this.jobPostingsService.syncWantedFallbackJobPostings();
+  }
 }

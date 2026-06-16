@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { apiRequest } from "../api/client";
 import { ButtonLink } from "../components/ButtonLink";
-import { usePosts } from "../posts/PostContext";
+import { toPostSummary, type ListPostsResponse } from "../posts/postMapper";
+import type { PostSummary } from "../types/post";
 
 const emptyCards = [
   {
@@ -22,8 +25,27 @@ const emptyCards = [
 ];
 
 export function HomePage() {
-  const { posts, totalCount } = usePosts();
-  const primaryPosts = posts.slice(0, 12);
+  const [primaryPosts, setPrimaryPosts] = useState<PostSummary[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchHomePosts() {
+      const result = await apiRequest<ListPostsResponse>("/posts?page=1&pageSize=8");
+
+      if (!ignore && result.ok) {
+        setPrimaryPosts(result.data.posts.map(toPostSummary));
+        setTotalCount(result.data.totalCount);
+      }
+    }
+
+    void fetchHomePosts();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   return (
     <main className="saramin-main">

@@ -8,13 +8,6 @@ const navItems = [
   { to: "/notices", label: "공지사항" },
 ];
 
-const enterpriseLinks = [
-  { to: "/posts/new", label: "공고 등록" },
-  { to: "/me/posts", label: "게시글 관리" },
-  { to: "/tags", label: "태그 관리" },
-  { to: "/settings", label: "계정 설정" },
-];
-
 const menuSections = [
   {
     title: "공고를 찾는다면 채용정보",
@@ -94,7 +87,7 @@ export function SiteHeader() {
 
       <div className="site-header__inner">
         <Link className="site-header__brand" to="/">
-          커리어보드
+          AI 게시판
         </Link>
         <form className="site-header__search" onSubmit={handleSearch}>
           <label className="sr-only" htmlFor="global-search">
@@ -104,9 +97,6 @@ export function SiteHeader() {
           <button type="submit">검색</button>
         </form>
         <div className="site-header__quick">
-          <Link className="site-header__write" to="/posts/new">
-            공고 등록
-          </Link>
           {user ? (
             <Link className="site-header__user" to="/me">
               {user.name}
@@ -116,15 +106,15 @@ export function SiteHeader() {
               개인회원
             </Link>
           )}
+          <Link className="site-header__write" to="/posts/new">
+            게시글 작성
+          </Link>
         </div>
       </div>
 
       <div className="site-header__nav-wrap">
         <nav className="site-header__nav" aria-label="주요 메뉴">
           <div className="site-header__menu">
-            <Link className="site-header__menu-link" to="/posts">
-              전체메뉴
-            </Link>
             <div className="site-header__mega" aria-label="전체메뉴 상세">
               {menuSections.map((section) => (
                 <div className="site-header__mega-section" key={section.title}>

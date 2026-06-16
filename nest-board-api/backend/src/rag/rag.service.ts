@@ -3,6 +3,8 @@ import { PrismaService } from "../database/prisma.service";
 import { ChromaVectorService } from "./chroma-vector.service";
 import { readSearchPostsQuery, type SearchPostsQuery } from "./rag.dto";
 
+const EMBEDDING_TARGET_TAG_NAME = "채용";
+
 type PostForVector = {
   author: {
     email: string;
@@ -52,6 +54,13 @@ export class RagService {
       select: this.postSearchSelect(),
       where: {
         status: "PUBLISHED",
+        tags: {
+          some: {
+            tag: {
+              name: EMBEDDING_TARGET_TAG_NAME,
+            },
+          },
+        },
       },
     });
 
@@ -70,7 +79,7 @@ export class RagService {
 
   async upsertPostVector(post: PostForVector) {
     try {
-      if (post.status !== "PUBLISHED") {
+      if (post.status !== "PUBLISHED" || !this.shouldEmbedPost(post)) {
         await this.chromaVectorService.deletePost(post.id);
         return;
       }
@@ -112,6 +121,13 @@ export class RagService {
           in: vectorMatches.map((match) => match.id),
         },
         status: "PUBLISHED",
+        tags: {
+          some: {
+            tag: {
+              name: EMBEDDING_TARGET_TAG_NAME,
+            },
+          },
+        },
       },
     });
     const postById = new Map(posts.map((post) => [post.id, post]));
@@ -137,17 +153,12 @@ export class RagService {
     };
   }
 
-  private buildPostText(post: PostForVector) {
-    return this.chromaVectorService.buildPostText({
-      authorName: post.author.name,
-      content: post.content,
-      tags: this.readTagNames(post.tags),
-      title: post.title,
-    });
-  }
-
   private readTagNames(tags: PostForVector["tags"]) {
     return tags.map((postTag) => postTag.tag.name);
+  }
+
+  private shouldEmbedPost(post: PostForVector) {
+    return this.readTagNames(post.tags).includes(EMBEDDING_TARGET_TAG_NAME);
   }
 
   private postSearchSelect() {

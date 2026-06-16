@@ -11,9 +11,11 @@ export function LoginPage() {
     typeof location.state?.message === "string" ? location.state.message : "",
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const savedEmail = localStorage.getItem(SAVED_LOGIN_EMAIL_KEY) ?? "";
   const [emailValue, setEmailValue] = useState(savedEmail);
   const [isRememberEmail, setIsRememberEmail] = useState(Boolean(savedEmail));
+
   const from = typeof location.state?.from === "string" ? location.state.from : "/";
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -50,7 +52,7 @@ export function LoginPage() {
     <main className="auth-page auth-page--login">
       <section className="auth-card" aria-labelledby="h-login">
         <Link className="auth-card__brand" to="/">
-          커리어보드
+          AI 게시판
         </Link>
         <h1 id="h-login">로그인</h1>
         <form className="auth-form" onSubmit={handleSubmit}>

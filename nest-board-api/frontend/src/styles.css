@@ -589,6 +589,7 @@ textarea {
 }
 
 .writing-style__summary h3,
+.writing-style__types h3,
 .writing-style__columns h3,
 .writing-style__advice h3 {
   margin: 8px 0 10px;
@@ -596,6 +597,7 @@ textarea {
 }
 
 .writing-style__summary p,
+.writing-style__types p,
 .writing-style__columns p {
   margin: 0;
   color: #4e5968;
@@ -631,6 +633,68 @@ textarea {
   color: #4e5968;
   font-size: 13px;
   font-weight: 800;
+}
+
+.writing-style__types {
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid #ececf2;
+  border-radius: 8px;
+}
+
+.writing-style__type-list {
+  display: grid;
+  gap: 14px;
+}
+
+.writing-style__type {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: #f8f9fb;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+}
+
+.writing-style__type-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.writing-style__type-head strong {
+  color: #111111;
+  font-size: 16px;
+}
+
+.writing-style__type-head span {
+  color: #ef3f7b;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.writing-style__bar {
+  overflow: hidden;
+  height: 10px;
+  background: #edf0f4;
+  border-radius: 999px;
+}
+
+.writing-style__bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ef3f7b, #7c3cff);
+  border-radius: inherit;
+}
+
+.writing-style__type ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: #4e5968;
+  line-height: 1.6;
 }
 
 .writing-style__advice ul {

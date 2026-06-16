@@ -1,13 +1,22 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { ChromaVectorService } from "../rag/chroma-vector.service";
 
 const SARAMIN_SOURCE = "saramin";
+const WANTED_FALLBACK_SOURCE = "wanted-fallback";
 const DEFAULT_SARAMIN_API_URL = "https://oapi.saramin.co.kr/job-search";
 const DEFAULT_SEOUL_LOCATION_CODE = "101000";
 const DEFAULT_DEVELOPER_KEYWORD = "개발자";
 const TARGET_EXPERIENCES = ["신입", "경력"] as const;
+const DEFAULT_WANTED_FALLBACK_SEED_PATH = join(
+  process.cwd(),
+  "prisma",
+  "seeds",
+  "wanted-job-postings.seed.json",
+);
 
 type SaraminJob = Record<string, unknown>;
 
@@ -27,6 +36,19 @@ type NormalizedJobPosting = {
   skills: string[];
   title: string;
   url: string;
+};
+
+type WantedFallbackSeedJob = {
+  company?: unknown;
+  deadline?: unknown;
+  description?: unknown;
+  experience?: unknown;
+  externalId?: unknown;
+  location?: unknown;
+  skills?: unknown;
+  source?: unknown;
+  title?: unknown;
+  url?: unknown;
 };
 
 @Injectable()
@@ -118,6 +140,92 @@ export class JobPostingsService {
       indexedCount,
       savedCount,
       source: SARAMIN_SOURCE,
+    };
+  }
+
+  async syncWantedFallbackJobPostings() {
+    const fetchedAt = new Date();
+    const jobs = await this.readWantedFallbackSeedJobs();
+    const externalIds = jobs.map((job) => job.externalId);
+
+    await this.prisma.jobPosting.updateMany({
+      data: {
+        status: "HIDDEN",
+      },
+      where: {
+        externalId: {
+          notIn: externalIds,
+        },
+        source: WANTED_FALLBACK_SOURCE,
+      },
+    });
+
+    let indexedCount = 0;
+    let indexFailedCount = 0;
+    let savedCount = 0;
+
+    for (const job of jobs) {
+      const savedJob = await this.prisma.jobPosting.upsert({
+        create: {
+          company: job.company,
+          deadline: job.deadline,
+          description: job.description,
+          experience: job.experience,
+          externalId: job.externalId,
+          lastFetchedAt: fetchedAt,
+          location: job.location,
+          skills: job.skills,
+          source: WANTED_FALLBACK_SOURCE,
+          status: "ACTIVE",
+          title: job.title,
+          url: job.url,
+        },
+        update: {
+          company: job.company,
+          deadline: job.deadline,
+          description: job.description,
+          experience: job.experience,
+          lastFetchedAt: fetchedAt,
+          location: job.location,
+          skills: job.skills,
+          status: "ACTIVE",
+          title: job.title,
+          url: job.url,
+        },
+        where: {
+          source_externalId: {
+            externalId: job.externalId,
+            source: WANTED_FALLBACK_SOURCE,
+          },
+        },
+      });
+      savedCount += 1;
+
+      try {
+        await this.chromaVectorService.upsertJobPosting({
+          company: savedJob.company,
+          description: savedJob.description,
+          experience: savedJob.experience,
+          id: savedJob.id,
+          location: savedJob.location,
+          skills: this.readSkills(savedJob.skills),
+          source: savedJob.source,
+          status: savedJob.status,
+          title: savedJob.title,
+          url: savedJob.url,
+        });
+        indexedCount += 1;
+      } catch {
+        indexFailedCount += 1;
+      }
+    }
+
+    return {
+      fetchedCount: jobs.length,
+      indexedCount,
+      indexFailedCount,
+      savedCount,
+      source: WANTED_FALLBACK_SOURCE,
     };
   }
 
@@ -248,5 +356,78 @@ export class JobPostingsService {
     }
 
     return null;
+  }
+
+  private readSeedDeadline(value: unknown) {
+    if (value === null || value === undefined || value === "") {
+      return null;
+    }
+
+    const date = new Date(String(value));
+
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    return date;
+  }
+
+  private async readWantedFallbackSeedJobs(): Promise<NormalizedJobPosting[]> {
+    const seedPath = process.env.WANTED_FALLBACK_SEED_PATH ?? DEFAULT_WANTED_FALLBACK_SEED_PATH;
+    const seedText = await readFile(seedPath, "utf8");
+    const payload = JSON.parse(seedText) as unknown;
+
+    if (!Array.isArray(payload)) {
+      throw new BadRequestException("Wanted fallback seed 파일은 배열 JSON이어야 합니다.");
+    }
+
+    return payload
+      .slice(0, 50)
+      .map((item) => this.normalizeWantedFallbackSeedJob(item))
+      .filter((job): job is NormalizedJobPosting => Boolean(job));
+  }
+
+  private normalizeWantedFallbackSeedJob(item: unknown): NormalizedJobPosting | null {
+    const job = this.readRecord(item) as WantedFallbackSeedJob | null;
+
+    if (!job) {
+      return null;
+    }
+
+    const externalId = this.readString(job.externalId);
+    const source = this.readString(job.source);
+    const title = this.readString(job.title);
+    const company = this.readString(job.company);
+    const url = this.readString(job.url);
+
+    if (source !== WANTED_FALLBACK_SOURCE || !externalId || !title || !company || !url) {
+      return null;
+    }
+
+    const skills = this.readSeedSkills(job.skills);
+    const location = this.readString(job.location) || "국내";
+    const experience = this.readString(job.experience) || "신입·주니어";
+    const description =
+      this.readString(job.description) || [title, company, location, experience, ...skills].filter(Boolean).join(" ");
+
+    return {
+      company,
+      deadline: this.readSeedDeadline(job.deadline),
+      description,
+      experience,
+      externalId,
+      location,
+      skills,
+      title,
+      url,
+    };
+  }
+
+  private readSeedSkills(value: unknown) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
   }
 }

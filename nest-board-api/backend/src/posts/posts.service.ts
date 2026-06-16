@@ -7,6 +7,7 @@ import {
 import type { AuthUser } from "../auth/auth.types";
 import { PrismaService } from "../database/prisma.service";
 import { RagService } from "../rag/rag.service";
+import { JobRecommendationCommentService } from "./job-recommendation-comment.service";
 import {
   readOptionalPostContent,
   readOptionalPostTitle,
@@ -19,11 +20,31 @@ import {
   type UpdatePostBody,
 } from "./posts.dto";
 
+type PostForSideEffects = {
+  author: {
+    email: string;
+    id: string;
+    name: string;
+  };
+  content: string;
+  excerpt: string | null;
+  id: string;
+  status: string;
+  tags: Array<{
+    tag: {
+      id: string;
+      name: string;
+    };
+  }>;
+  title: string;
+};
+
 @Injectable()
 export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ragService: RagService,
+    private readonly jobRecommendationCommentService: JobRecommendationCommentService,
   ) {}
 
   async create(body: CreatePostBody, user: AuthUser) {
@@ -39,7 +60,7 @@ export class PostsService {
       select: this.postDetailSelect(),
     });
 
-    await this.ragService.upsertPostVector(post);
+    void this.runPostSideEffects(post);
 
     return {
       post,
@@ -130,7 +151,7 @@ export class PostsService {
       select: this.postDetailSelect(),
     });
 
-    await this.ragService.upsertPostVector(post);
+    void this.runPostSideEffects(post);
 
     return {
       post,
@@ -170,6 +191,15 @@ export class PostsService {
     }
 
     return post;
+  }
+
+  private async runPostSideEffects(post: PostForSideEffects) {
+    try {
+      await this.ragService.upsertPostVector(post);
+      await this.jobRecommendationCommentService.createForPost(post);
+    } catch {
+      return;
+    }
   }
 
   private assertPostAuthor(authorId: string, user: AuthUser) {
