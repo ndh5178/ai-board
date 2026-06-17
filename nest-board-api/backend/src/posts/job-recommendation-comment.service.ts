@@ -2,49 +2,20 @@ import { Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
+import { JobPostingsService } from "../job-postings/job-postings.service";
+import type { JobPostingCandidate, JobSearchCriteria } from "../job-postings/job-search.types";
 import { ChromaVectorService } from "../rag/chroma-vector.service";
+import { RagService } from "../rag/rag.service";
 import { hashPassword } from "../auth/password";
+import { CAREER_TAG_NAME, hasCareerKeywordText } from "../common/career-keywords";
+import { buildJobSearchCriteriaAttempts } from "./job-search-criteria";
 
-const CAREER_TAG_NAME = "채용";
 const AUTO_JOB_COMMENT_PREFIX = "[AI 채용공고 추천]";
 const AI_AGENT_EMAIL = "ai-agent@career-board.local";
 const AI_AGENT_NAME = "AI 에이전트";
 const DEFAULT_AUTO_JOB_COMMENT_COOLDOWN_HOURS = 24;
-const DEFAULT_JOB_RECOMMENDATION_LIMIT = 5;
-const CAREER_KEYWORDS = [
-  "취업",
-  "채용",
-  "공고",
-  "지원",
-  "이력서",
-  "자소서",
-  "포트폴리오",
-  "면접",
-  "서류",
-  "합격",
-  "불합격",
-  "커리어",
-  "신입",
-  "주니어",
-  "인턴",
-  "개발자",
-  "프론트엔드",
-  "백엔드",
-  "풀스택",
-  "데이터",
-  "데브옵스",
-  "react",
-  "typescript",
-  "javascript",
-  "node",
-  "nestjs",
-  "spring",
-  "java",
-  "python",
-  "sql",
-  "aws",
-  "docker",
-];
+const DEFAULT_JOB_RECOMMENDATION_LIMIT = 3;
+const MAX_AGENT_STEPS = 5;
 
 type PostForJobRecommendation = {
   author: {
@@ -72,11 +43,26 @@ type JobPostingForComment = {
   url: string;
 };
 
+type JobRecommendationAgentState = {
+  apiFailed: boolean;
+  attempts: Array<{
+    criteria: JobSearchCriteria;
+    resultCount: number;
+    source: "saramin-api";
+  }>;
+  criteriaAttempts: JobSearchCriteria[];
+  fallbackUsed: boolean;
+  selectedResults: JobPostingCandidate[];
+  source?: "saramin-api" | "fallback-rag";
+};
+
 @Injectable()
 export class JobRecommendationCommentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly chromaVectorService: ChromaVectorService,
+    private readonly jobPostingsService: JobPostingsService,
+    private readonly ragService: RagService,
   ) {}
 
   async createForPost(post: PostForJobRecommendation) {
@@ -95,22 +81,77 @@ export class JobRecommendationCommentService {
         return null;
       }
 
-      const matches = await this.searchMatchingJobPostings(post);
-
-      if (matches.length === 0) {
-        return null;
-      }
-
-      return this.prisma.comment.create({
-        data: {
-          authorId: aiAgent.id,
-          content: this.buildCommentContent(matches),
-          postId: post.id,
-        },
-      });
+      return this.runAgentLoop(post, aiAgent.id);
     } catch {
       return null;
     }
+  }
+
+  private async runAgentLoop(post: PostForJobRecommendation, aiAgentId: string) {
+    const state = this.createInitialAgentState(post);
+
+    for (let step = 0; step < MAX_AGENT_STEPS; step += 1) {
+      if (state.selectedResults.length > 0 && state.source) {
+        return this.saveComment(post.id, aiAgentId, state.selectedResults, state.source);
+      }
+
+      if (state.criteriaAttempts.length > 0 && !state.apiFailed) {
+        const criteria = state.criteriaAttempts.shift();
+
+        if (!criteria) {
+          continue;
+        }
+
+        try {
+          const results = await this.jobPostingsService.searchSaraminJobPostings(criteria);
+          state.attempts.push({
+            criteria,
+            resultCount: results.length,
+            source: "saramin-api",
+          });
+
+          if (results.length >= DEFAULT_JOB_RECOMMENDATION_LIMIT) {
+            state.selectedResults = results.slice(0, DEFAULT_JOB_RECOMMENDATION_LIMIT);
+            state.source = "saramin-api";
+          }
+        } catch {
+          state.apiFailed = true;
+          state.criteriaAttempts = [];
+        }
+
+        continue;
+      }
+
+      if (!state.fallbackUsed) {
+        state.fallbackUsed = true;
+        const fallbackResults = await this.searchFallbackJobPostings(post);
+
+        if (fallbackResults.length > 0) {
+          state.selectedResults = fallbackResults.slice(0, DEFAULT_JOB_RECOMMENDATION_LIMIT);
+          state.source = "fallback-rag";
+        }
+
+        continue;
+      }
+
+      return null;
+    }
+
+    if (state.selectedResults.length > 0 && state.source) {
+      return this.saveComment(post.id, aiAgentId, state.selectedResults, state.source);
+    }
+
+    return null;
+  }
+
+  private createInitialAgentState(post: PostForJobRecommendation): JobRecommendationAgentState {
+    return {
+      apiFailed: false,
+      attempts: [],
+      criteriaAttempts: buildJobSearchCriteriaAttempts(post),
+      fallbackUsed: false,
+      selectedResults: [],
+    };
   }
 
   private async findOrCreateAiAgent() {
@@ -164,9 +205,27 @@ export class JobRecommendationCommentService {
     return Boolean(recentComment);
   }
 
-  private async searchMatchingJobPostings(post: PostForJobRecommendation) {
+  private async searchFallbackJobPostings(post: PostForJobRecommendation): Promise<JobPostingCandidate[]> {
+    const vectorResult = await this.ragService.upsertPostVector({
+      ...post,
+      author: {
+        email: "",
+        id: post.author.id,
+        name: post.author.name,
+      },
+      excerpt: null,
+    });
+
+    if (!vectorResult.embedding) {
+      return [];
+    }
+
     const query = this.buildSearchQuery(post);
-    const vectorMatches = await this.chromaVectorService.searchJobPostings(query, DEFAULT_JOB_RECOMMENDATION_LIMIT);
+    const vectorMatches = await this.chromaVectorService.searchJobPostings(
+      query,
+      DEFAULT_JOB_RECOMMENDATION_LIMIT,
+      vectorResult.embedding,
+    );
 
     if (vectorMatches.length === 0) {
       return [];
@@ -192,31 +251,51 @@ export class JobRecommendationCommentService {
     const jobPostingById = new Map(jobPostings.map((jobPosting) => [jobPosting.id, jobPosting]));
 
     return vectorMatches
-      .map((match) => {
+      .flatMap((match) => {
         const jobPosting = jobPostingById.get(match.id);
 
         if (!jobPosting) {
-          return null;
+          return [];
         }
 
-        return {
-          jobPosting,
-          score: match.score,
-        };
-      })
-      .filter((match): match is { jobPosting: JobPostingForComment; score: number } => Boolean(match));
+        return [{
+          company: jobPosting.company,
+          experience: jobPosting.experience,
+          location: jobPosting.location,
+          skills: this.readSkills(jobPosting.skills),
+          source: "fallback-rag" as const,
+          title: jobPosting.title,
+          url: jobPosting.url,
+        }];
+      });
   }
 
-  private buildCommentContent(matches: Array<{ jobPosting: JobPostingForComment; score: number }>) {
+  private saveComment(
+    postId: string,
+    aiAgentId: string,
+    matches: JobPostingCandidate[],
+    source: "saramin-api" | "fallback-rag",
+  ) {
+    return this.prisma.comment.create({
+      data: {
+        authorId: aiAgentId,
+        content: this.buildCommentContent(matches, source),
+        postId,
+      },
+    });
+  }
+
+  private buildCommentContent(matches: JobPostingCandidate[], source: "saramin-api" | "fallback-rag") {
+    const sourceLabel = source === "saramin-api" ? "사람인 API" : "fallback RAG";
     const lines = [
       AUTO_JOB_COMMENT_PREFIX,
-      "이 글과 비슷한 신입·주니어 개발자 공고를 찾아봤어요.",
+      `${sourceLabel}로 이 글에 어울릴 만한 신입·주니어 개발자 공고 3개를 찾아봤어요.`,
       "",
-      ...matches.flatMap(({ jobPosting }, index) => [
+      ...matches.flatMap((jobPosting, index) => [
         `${index + 1}. [${jobPosting.title}](${jobPosting.url})`,
         `   - 회사: ${jobPosting.company}`,
         `   - 위치/경력: ${[jobPosting.location, jobPosting.experience].filter(Boolean).join(" · ") || "공고 확인 필요"}`,
-        `   - 기술: ${this.readSkills(jobPosting.skills).join(", ") || "공고 확인 필요"}`,
+        `   - 기술: ${jobPosting.skills.join(", ") || "공고 확인 필요"}`,
       ]),
     ];
 
@@ -246,9 +325,7 @@ export class JobRecommendationCommentService {
   }
 
   private hasCareerKeyword(post: PostForJobRecommendation) {
-    const searchableText = `${post.title} ${post.content}`.toLowerCase();
-
-    return CAREER_KEYWORDS.some((keyword) => searchableText.includes(keyword));
+    return hasCareerKeywordText(post.title, post.content);
   }
 
   private autoCommentCooldownHours() {

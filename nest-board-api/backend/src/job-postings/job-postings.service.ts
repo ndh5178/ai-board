@@ -4,11 +4,13 @@ import { join } from "node:path";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma.service";
 import { ChromaVectorService } from "../rag/chroma-vector.service";
+import type { JobPostingCandidate, JobSearchCriteria } from "./job-search.types";
 
 const SARAMIN_SOURCE = "saramin";
 const WANTED_FALLBACK_SOURCE = "wanted-fallback";
 const DEFAULT_SARAMIN_API_URL = "https://oapi.saramin.co.kr/job-search";
 const DEFAULT_SEOUL_LOCATION_CODE = "101000";
+const DEFAULT_GYEONGGI_LOCATION_CODE = "102000";
 const DEFAULT_DEVELOPER_KEYWORD = "개발자";
 const TARGET_EXPERIENCES = ["신입", "경력"] as const;
 const DEFAULT_WANTED_FALLBACK_SEED_PATH = join(
@@ -58,6 +60,34 @@ export class JobPostingsService {
     private readonly chromaVectorService: ChromaVectorService,
   ) {}
 
+  async searchSaraminJobPostings(criteria: JobSearchCriteria): Promise<JobPostingCandidate[]> {
+    const apiKey = process.env.SARAMIN_API_KEY;
+
+    if (!apiKey) {
+      throw new BadRequestException("SARAMIN_API_KEY 환경변수가 설정되어 있지 않습니다.");
+    }
+
+    const jobs = await this.fetchSaraminJobs(apiKey, {
+      count: criteria.limit,
+      keyword: criteria.keyword,
+      location: criteria.location,
+    });
+
+    return jobs
+      .map((job) => this.normalizeSaraminJob(job, criteria.experience ?? "무관"))
+      .filter((job): job is NormalizedJobPosting => Boolean(job))
+      .slice(0, criteria.limit)
+      .map((job) => ({
+        company: job.company,
+        experience: job.experience,
+        location: job.location,
+        skills: job.skills,
+        source: "saramin-api" as const,
+        title: job.title,
+        url: job.url,
+      }));
+  }
+
   async syncSaraminJobPostings() {
     const apiKey = process.env.SARAMIN_API_KEY;
 
@@ -69,7 +99,11 @@ export class JobPostingsService {
     const normalizedJobs = new Map<string, NormalizedJobPosting>();
 
     for (const experience of TARGET_EXPERIENCES) {
-      const jobs = await this.fetchSaraminJobs(apiKey, experience);
+      const jobs = await this.fetchSaraminJobs(apiKey, {
+        count: Number(process.env.SARAMIN_FETCH_COUNT ?? "20"),
+        keyword: `${process.env.SARAMIN_DEVELOPER_KEYWORD ?? DEFAULT_DEVELOPER_KEYWORD} ${experience}`,
+        location: "서울",
+      });
 
       for (const job of jobs) {
         const normalized = this.normalizeSaraminJob(job, experience);
@@ -229,14 +263,23 @@ export class JobPostingsService {
     };
   }
 
-  private async fetchSaraminJobs(apiKey: string, experience: (typeof TARGET_EXPERIENCES)[number]) {
+  private async fetchSaraminJobs(
+    apiKey: string,
+    options: {
+      count: number;
+      keyword: string;
+      location?: string;
+    },
+  ) {
     const url = new URL(process.env.SARAMIN_API_URL ?? DEFAULT_SARAMIN_API_URL);
-    const keyword = `${process.env.SARAMIN_DEVELOPER_KEYWORD ?? DEFAULT_DEVELOPER_KEYWORD} ${experience}`;
+    const locationCode = this.resolveSaraminLocationCode(options.location);
 
     url.searchParams.set("access-key", apiKey);
-    url.searchParams.set("keywords", keyword);
-    url.searchParams.set("loc_cd", process.env.SARAMIN_SEOUL_LOCATION_CODE ?? DEFAULT_SEOUL_LOCATION_CODE);
-    url.searchParams.set("count", process.env.SARAMIN_FETCH_COUNT ?? "20");
+    url.searchParams.set("keywords", options.keyword || DEFAULT_DEVELOPER_KEYWORD);
+    if (locationCode) {
+      url.searchParams.set("loc_cd", locationCode);
+    }
+    url.searchParams.set("count", String(Math.max(1, options.count)));
     url.searchParams.set("start", "0");
 
     const response = await fetch(url, {
@@ -259,9 +302,25 @@ export class JobPostingsService {
     return Array.isArray(rawJobs) ? rawJobs : [rawJobs];
   }
 
+  private resolveSaraminLocationCode(location?: string) {
+    if (!location) {
+      return process.env.SARAMIN_SEOUL_LOCATION_CODE ?? DEFAULT_SEOUL_LOCATION_CODE;
+    }
+
+    if (location.includes("경기") || location.includes("판교") || location.includes("성남")) {
+      return process.env.SARAMIN_GYEONGGI_LOCATION_CODE ?? DEFAULT_GYEONGGI_LOCATION_CODE;
+    }
+
+    if (location.includes("원격") || location.includes("재택")) {
+      return "";
+    }
+
+    return process.env.SARAMIN_SEOUL_LOCATION_CODE ?? DEFAULT_SEOUL_LOCATION_CODE;
+  }
+
   private normalizeSaraminJob(
     job: SaraminJob,
-    requestedExperience: (typeof TARGET_EXPERIENCES)[number],
+    requestedExperience: string,
   ): NormalizedJobPosting | null {
     const position = this.readRecord(job.position);
     const companyRecord = this.readRecord(job.company);

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ChromaClient, type Collection, type Metadata } from "chromadb";
-import { createEmbedding } from "./embedding";
+import { createEmbedding, type EmbeddingVector } from "./embedding";
 
 const DEFAULT_CHROMA_HOST = "localhost";
 const DEFAULT_CHROMA_PORT = 8000;
@@ -76,13 +76,13 @@ export class ChromaVectorService {
     );
   }
 
-  async upsertPost(input: PostVectorInput) {
+  async upsertPost(input: PostVectorInput, embedding?: EmbeddingVector) {
     const collection = await this.getPostCollection();
     const document = this.buildPostText(input);
 
     await collection.upsert({
       documents: [document],
-      embeddings: [await createEmbedding(document)],
+      embeddings: [embedding ?? (await createEmbedding(document))],
       ids: [input.id],
       metadatas: [this.buildMetadata(input)],
     });
@@ -100,6 +100,15 @@ export class ChromaVectorService {
     return [input.title, input.authorName, ...(input.tags ?? []), input.content].filter(Boolean).join(" ");
   }
 
+  async createPostEmbedding(input: PostVectorInput) {
+    const document = this.buildPostText(input);
+
+    return {
+      document,
+      embedding: await createEmbedding(document),
+    };
+  }
+
   async upsertJobPosting(input: JobPostingVectorInput) {
     const collection = await this.getJobPostingCollection();
     const document = this.buildJobPostingText(input);
@@ -112,13 +121,16 @@ export class ChromaVectorService {
     });
   }
 
-  async searchJobPostings(query: string, limit: number): Promise<JobPostingVectorMatch[]> {
+  async searchJobPostings(
+    query: string,
+    limit: number,
+    queryEmbedding?: EmbeddingVector,
+  ): Promise<JobPostingVectorMatch[]> {
     const collection = await this.getJobPostingCollection();
-    const queryEmbedding = await createEmbedding(query);
     const result = await collection.query({
       include: ["distances"],
       nResults: limit,
-      queryEmbeddings: [queryEmbedding],
+      queryEmbeddings: [queryEmbedding ?? (await createEmbedding(query))],
       where: {
         status: "ACTIVE",
       },
