@@ -195,7 +195,6 @@ export class PostsService {
 
   private async runPostSideEffects(post: PostForSideEffects) {
     try {
-      await this.ragService.upsertPostVector(post);
       await this.jobRecommendationCommentService.createForPost(post);
     } catch {
       return;

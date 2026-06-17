@@ -7,6 +7,7 @@ import { JobPostingsService } from "./job-postings.service";
 @Module({
   imports: [AuthModule, RagModule],
   controllers: [JobPostingsController],
+  exports: [JobPostingsService],
   providers: [JobPostingsService],
 })
 export class JobPostingsModule {}

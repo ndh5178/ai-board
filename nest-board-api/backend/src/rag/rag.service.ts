@@ -1,9 +1,14 @@
 import { Injectable } from "@nestjs/common";
+import { CAREER_TAG_NAME, hasCareerKeywordText } from "../common/career-keywords";
 import { PrismaService } from "../database/prisma.service";
 import { ChromaVectorService } from "./chroma-vector.service";
+import type { EmbeddingVector } from "./embedding";
 import { readSearchPostsQuery, type SearchPostsQuery } from "./rag.dto";
 
-const EMBEDDING_TARGET_TAG_NAME = "채용";
+export type UpsertPostVectorResult = {
+  embedding?: EmbeddingVector;
+  indexed: boolean;
+};
 
 type PostForVector = {
   author: {
@@ -17,7 +22,7 @@ type PostForVector = {
   status: string;
   tags: Array<{
     tag: {
-      id: string;
+      id?: string;
       name: string;
     };
   }>;
@@ -57,7 +62,7 @@ export class RagService {
         tags: {
           some: {
             tag: {
-              name: EMBEDDING_TARGET_TAG_NAME,
+              name: CAREER_TAG_NAME,
             },
           },
         },
@@ -67,8 +72,8 @@ export class RagService {
     let indexedCount = 0;
 
     for (const post of posts) {
-      await this.upsertPostVector(post);
-      indexedCount += 1;
+      const result = await this.upsertPostVector(post);
+      indexedCount += result.indexed ? 1 : 0;
     }
 
     return {
@@ -81,19 +86,31 @@ export class RagService {
     try {
       if (post.status !== "PUBLISHED" || !this.shouldEmbedPost(post)) {
         await this.chromaVectorService.deletePost(post.id);
-        return;
+        return {
+          indexed: false,
+        };
       }
 
-      await this.chromaVectorService.upsertPost({
+      const vectorInput = {
         authorName: post.author.name,
         content: post.content,
         id: post.id,
         status: post.status,
         tags: this.readTagNames(post.tags),
         title: post.title,
-      });
+      };
+      const { embedding } = await this.chromaVectorService.createPostEmbedding(vectorInput);
+
+      await this.chromaVectorService.upsertPost(vectorInput, embedding);
+
+      return {
+        embedding,
+        indexed: true,
+      };
     } catch {
-      return;
+      return {
+        indexed: false,
+      };
     }
   }
 
@@ -124,7 +141,7 @@ export class RagService {
         tags: {
           some: {
             tag: {
-              name: EMBEDDING_TARGET_TAG_NAME,
+              name: CAREER_TAG_NAME,
             },
           },
         },
@@ -158,7 +175,7 @@ export class RagService {
   }
 
   private shouldEmbedPost(post: PostForVector) {
-    return this.readTagNames(post.tags).includes(EMBEDDING_TARGET_TAG_NAME);
+    return this.readTagNames(post.tags).includes(CAREER_TAG_NAME) && hasCareerKeywordText(post.title, post.content);
   }
 
   private postSearchSelect() {

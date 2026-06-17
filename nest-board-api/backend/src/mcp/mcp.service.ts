@@ -1,8 +1,12 @@
 import { Injectable } from "@nestjs/common";
+import { JobPostingsService } from "../job-postings/job-postings.service";
+import type { JobSearchCriteria, JobSearchExperience } from "../job-postings/job-search.types";
 import { readJsonRpcRequest, readToolCallParams, type JsonRpcId, type JsonRpcRequest } from "./mcp.dto";
 
 @Injectable()
 export class McpService {
+  constructor(private readonly jobPostingsService: JobPostingsService) {}
+
   async handleJsonRpc(body: JsonRpcRequest) {
     const request = this.readRequestSafely(body);
 
@@ -16,6 +20,17 @@ export class McpService {
       }
 
       const params = readToolCallParams(request.params);
+
+      if (params.name === "search_saramin_jobs") {
+        const criteria = this.readSaraminSearchCriteria(params.arguments);
+        const jobs = await this.jobPostingsService.searchSaraminJobPostings(criteria);
+
+        return this.successResponse(request.id, {
+          criteria,
+          jobs,
+          totalCount: jobs.length,
+        });
+      }
 
       return this.errorResponse(request.id, -32601, `아직 등록되지 않은 MCP tool입니다: ${params.name}`);
     } catch (error) {
@@ -46,5 +61,61 @@ export class McpService {
       id,
       jsonrpc: "2.0",
     };
+  }
+
+  private successResponse(id: JsonRpcId, result: unknown) {
+    return {
+      id,
+      jsonrpc: "2.0",
+      result,
+    };
+  }
+
+  private readSaraminSearchCriteria(value: unknown): JobSearchCriteria {
+    const args = this.readRecord(value);
+    const keyword = this.readString(args.keyword) || "개발자 신입";
+    const roles = this.readStringArray(args.roles);
+    const skills = this.readStringArray(args.skills);
+    const location = this.readString(args.location) || "서울";
+    const experience = this.readExperience(args.experience);
+
+    return {
+      experience,
+      keyword,
+      limit: 3,
+      location,
+      roles: roles.length > 0 ? roles : ["개발자"],
+      skills,
+    };
+  }
+
+  private readRecord(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return {};
+    }
+
+    return value as Record<string, unknown>;
+  }
+
+  private readString(value: unknown) {
+    return typeof value === "string" ? value.trim() : "";
+  }
+
+  private readStringArray(value: unknown) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }
+
+  private readExperience(value: unknown): JobSearchExperience {
+    const rawValue = this.readString(value);
+
+    if (rawValue === "신입" || rawValue === "주니어" || rawValue === "경력" || rawValue === "무관") {
+      return rawValue;
+    }
+
+    return "신입";
   }
 }
